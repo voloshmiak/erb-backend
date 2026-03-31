@@ -2,6 +2,12 @@
 
 How to launch:
 
+Authenticate with GCP:
+```bash
+gcloud auth login
+gcloud auth application-default login
+```
+
 First build the docker images:
 ```bash
 ./rebuild.dev.sh
