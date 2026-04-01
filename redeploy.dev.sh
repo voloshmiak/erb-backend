@@ -12,5 +12,4 @@ docker run -it \
   --env-file .env \
   -p 8080:8080 \
   -v "$(pwd)":/app \
-  -v "$HOME/.config/gcloud":/root/.config/gcloud \
   "$IMAGE_NAME"

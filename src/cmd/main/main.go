@@ -10,12 +10,8 @@ import (
 
 	_ "erb-backend/src/docs"
 
-	"cloud.google.com/go/cloudsqlconn/postgres/pgxv5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/swaggo/http-swagger"
-)
-
-const (
-	cloudDriverName = "cloudsql-postgres"
 )
 
 // @title           Empty Runner Buster API
@@ -36,22 +32,11 @@ func run() error {
 		return err
 	}
 
-	cleanup, err := pgxv5.RegisterDriver(cloudDriverName)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = cleanup()
-		if err != nil {
-			log.Println("Error during driver cleanup:", err)
-		}
-	}()
-
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Database.ConnectionName, cfg.Database.User,
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=require",
+		cfg.Database.Host, cfg.Database.User,
 		cfg.Database.UserPassword, cfg.Database.Name)
 
-	conn, err := sql.Open(cloudDriverName, dsn)
+	conn, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return err
 	}

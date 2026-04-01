@@ -8,11 +8,11 @@ import (
 type Config struct {
 	Port     string `env:"PORT" envDefault:"8080"`
 	Database struct {
-		Name           string `env:"DB_NAME,required"`
-		Password       string `env:"DB_PASSWORD"`
-		User           string `env:"DB_USER,required"`
-		UserPassword   string `env:"DB_USER_PASSWORD,required"`
-		ConnectionName string `env:"DB_CONNECTION_NAME"`
+		Name         string `env:"DB_NAME,required"`
+		Password     string `env:"DB_PASSWORD"`
+		User         string `env:"DB_USER,required"`
+		UserPassword string `env:"DB_USER_PASSWORD,required"`
+		Host         string `env:"DB_HOST,required"`
 	}
 }
 
