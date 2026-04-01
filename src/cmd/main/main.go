@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"erb-backend/src/config"
 	"erb-backend/src/controller"
+	"erb-backend/src/repository/postgres"
+	"erb-backend/src/usecase"
 	"fmt"
 	"log"
 	"net/http"
@@ -49,11 +51,21 @@ func run() error {
 
 	router := http.NewServeMux()
 
+	stationRepository := postgres.NewStationRepository(conn)
+
+	listStationsUsecase := usecase.NewListStationsUseCase(
+		stationRepository,
+	)
+
 	healthController := controller.NewHealthController()
 	docsController := controller.NewDocsController()
+	listStationsController := controller.NewListStationsController(
+		listStationsUsecase,
+	)
 
-	router.Handle("/api/health", healthController)
-	router.Handle("/api/docs", docsController)
+	router.Handle("GET /api/health", healthController)
+	router.Handle("GET /api/docs", docsController)
+	router.Handle("GET /api/stations", listStationsController)
 	router.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	server := &http.Server{

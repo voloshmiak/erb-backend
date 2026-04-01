@@ -23,6 +23,88 @@
                 "summary": "Health Check",
                 "responses": {}
             }
+        },
+        "/stations": {
+            "get": {
+                "description": "Retrieves all stations and active edges forming the railway graph",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Station"
+                ],
+                "summary": "List Stations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.listStationsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve stations",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "controller.edgeResponse": {
+            "type": "object",
+            "properties": {
+                "distanceKm": {
+                    "type": "integer"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "controller.listStationsResponse": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controller.edgeResponse"
+                    }
+                },
+                "stations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controller.stationResponse"
+                    }
+                }
+            }
+        },
+        "controller.stationResponse": {
+            "type": "object",
+            "properties": {
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "stationId": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
         }
     }
 }

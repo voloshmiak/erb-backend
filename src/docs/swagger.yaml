@@ -1,4 +1,38 @@
 basePath: /api
+definitions:
+  controller.edgeResponse:
+    properties:
+      distanceKm:
+        type: integer
+      from:
+        type: string
+      to:
+        type: string
+    type: object
+  controller.listStationsResponse:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/controller.edgeResponse'
+        type: array
+      stations:
+        items:
+          $ref: '#/definitions/controller.stationResponse'
+        type: array
+    type: object
+  controller.stationResponse:
+    properties:
+      lat:
+        type: number
+      lng:
+        type: number
+      name:
+        type: string
+      stationId:
+        type: string
+      type:
+        type: string
+    type: object
 info:
   contact: {}
   description: This is the API documentation for the Empty Runner Buster application
@@ -16,4 +50,23 @@ paths:
       summary: Health Check
       tags:
       - System
+  /stations:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all stations and active edges forming the railway graph
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.listStationsResponse'
+        "500":
+          description: Failed to retrieve stations
+          schema:
+            type: string
+      summary: List Stations
+      tags:
+      - Station
 swagger: "2.0"
