@@ -17,7 +17,6 @@ import (
 // @title           Empty Runner Buster API
 // @version         1.0
 // @description		This is the API documentation for the Empty Runner Buster application
-// @host            localhost:8080
 // @BasePath        /api
 func main() {
 	if err := run(); err != nil {
