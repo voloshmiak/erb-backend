@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
 )
@@ -19,7 +21,7 @@ type Config struct {
 func New() (*Config, error) {
 	err := godotenv.Load(".env")
 	if err != nil {
-		return nil, err
+		log.Println("No .env file found, relying on environment variables")
 	}
 
 	cfg := &Config{}
