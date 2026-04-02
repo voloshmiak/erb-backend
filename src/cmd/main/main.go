@@ -17,7 +17,7 @@ import (
 )
 
 // @title           Empty Runner Buster API
-// @version         1.0.1
+// @version         1.0.2
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
@@ -52,20 +52,20 @@ func run() error {
 	router := http.NewServeMux()
 
 	stationRepository := postgres.NewStationRepository(conn)
+	wagonRepository := postgres.NewWagonRepository(conn)
 
-	listStationsUsecase := usecase.NewListStationsUseCase(
-		stationRepository,
-	)
+	listStationsUsecase := usecase.NewListStationsUseCase(stationRepository)
+	fleetStatusUsecase := usecase.NewFleetStatusUseCase(wagonRepository)
 
 	healthController := controller.NewHealthController()
 	docsController := controller.NewDocsController()
-	listStationsController := controller.NewListStationsController(
-		listStationsUsecase,
-	)
+	listStationsController := controller.NewListStationsController(listStationsUsecase)
+	fleetStatusController := controller.NewFleetStatusController(fleetStatusUsecase)
 
 	router.Handle("GET /api/health", healthController)
 	router.Handle("GET /api/docs", docsController)
 	router.Handle("GET /api/stations", listStationsController)
+	router.Handle("GET /api/fleet/status", fleetStatusController)
 	router.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	server := &http.Server{

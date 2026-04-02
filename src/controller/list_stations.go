@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"erb-backend/src/entity"
 	"erb-backend/src/usecase"
-	"github.com/pkg/errors"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 type ListStationsController struct {
@@ -35,7 +36,7 @@ type listStationsResponse struct {
 	Edges    []edgeResponse    `json:"edges"`
 }
 
-// ListStations godoc
+// ServeHTTP godoc
 // @Summary     List Stations
 // @Description Retrieves all stations and active edges forming the railway graph
 // @Tags        Station

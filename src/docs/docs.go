@@ -15,20 +15,67 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/health": {
+        "/docs": {
             "get": {
-                "description": "Checks the health of the API",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Serves the interactive API reference UI",
                 "produces": [
-                    "application/json"
+                    "text/html"
                 ],
                 "tags": [
                     "System"
                 ],
+                "summary": "API Documentation",
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/fleet/status": {
+            "get": {
+                "description": "Returns wagon counts by type and status, plus average empty-run km for today",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Fleet"
+                ],
+                "summary": "Fleet Status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.fleetStatusResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve fleet status",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Returns 200 OK when the service is healthy",
+                "tags": [
+                    "System"
+                ],
                 "summary": "Health Check",
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
             }
         },
         "/stations": {
@@ -76,6 +123,23 @@ const docTemplate = `{
                 }
             }
         },
+        "controller.fleetStatusResponse": {
+            "type": "object",
+            "properties": {
+                "avgEmptyRunKmToday": {
+                    "type": "number"
+                },
+                "byType": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/usecase.WagonTypeStatus"
+                    }
+                },
+                "totalWagons": {
+                    "type": "integer"
+                }
+            }
+        },
         "controller.listStationsResponse": {
             "type": "object",
             "properties": {
@@ -112,13 +176,33 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "usecase.WagonTypeStatus": {
+            "type": "object",
+            "properties": {
+                "emptyMoving": {
+                    "type": "integer"
+                },
+                "idle": {
+                    "type": "integer"
+                },
+                "loaded": {
+                    "type": "integer"
+                },
+                "maintenance": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0.1",
+	Version:          "1.0.2",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},

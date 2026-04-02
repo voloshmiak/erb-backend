@@ -9,6 +9,13 @@ func NewDocsController() *DocsController {
 	return &DocsController{}
 }
 
+// ServeHTTP godoc
+// @Summary     API Documentation
+// @Description Serves the interactive API reference UI
+// @Tags        System
+// @Produce     html
+// @Success     200  {string}  string  "HTML page"
+// @Router      /docs [get]
 func (h *DocsController) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	html := `
