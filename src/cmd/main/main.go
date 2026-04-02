@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"erb-backend/src/config"
 	"erb-backend/src/controller"
-	"erb-backend/src/repository/postgres"
+	"erb-backend/src/repository"
 	"erb-backend/src/usecase"
 	"fmt"
 	"log"
@@ -51,8 +51,8 @@ func run() error {
 
 	router := http.NewServeMux()
 
-	stationRepository := postgres.NewStationRepository(conn)
-	wagonRepository := postgres.NewWagonRepository(conn)
+	stationRepository := repository.NewStationRepository(conn)
+	wagonRepository := repository.NewWagonRepository(conn)
 
 	listStationsUsecase := usecase.NewListStationsUseCase(stationRepository)
 	fleetStatusUsecase := usecase.NewFleetStatusUseCase(wagonRepository)
