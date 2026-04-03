@@ -44,6 +44,60 @@ definitions:
       type:
         type: string
     type: object
+  entity.Order:
+    properties:
+      clientName:
+        type: string
+      createdAt:
+        type: string
+      desiredDate:
+        type: string
+      id:
+        type: string
+      quantity:
+        type: integer
+      stationToId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.OrderStatus'
+      wagonType:
+        $ref: '#/definitions/entity.WagonType'
+    type: object
+  entity.OrderStatus:
+    enum:
+    - pending
+    - matched
+    - fulfilled
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - Pending
+    - Matched
+    - Fulfilled
+    - Cancelled
+  entity.WagonType:
+    enum:
+    - gondola
+    - grain_hopper
+    - cement_hopper
+    type: string
+    x-enum-varnames:
+    - Gondola
+    - GrainHopper
+    - CementHopper
+  usecase.CreateOrderInput:
+    properties:
+      clientName:
+        type: string
+      desiredDate:
+        type: string
+      quantity:
+        type: integer
+      stationToId:
+        type: string
+      wagonType:
+        $ref: '#/definitions/entity.WagonType'
+    type: object
   usecase.WagonTypeStatus:
     properties:
       emptyMoving:
@@ -61,7 +115,7 @@ info:
   contact: {}
   description: This is the API documentation for the Empty Runner Buster application
   title: Empty Runner Buster API
-  version: 1.0.2
+  version: 1.0.3
 paths:
   /docs:
     get:
@@ -76,6 +130,19 @@ paths:
       summary: API Documentation
       tags:
       - System
+  /events/stream:
+    get:
+      description: Server-sent events stream for real-time wagon movement updates
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
+      summary: Events Stream
+      tags:
+      - Events
   /fleet/status:
     get:
       description: Returns wagon counts by type and status, plus average empty-run
@@ -105,6 +172,36 @@ paths:
       summary: Health Check
       tags:
       - System
+  /orders:
+    post:
+      consumes:
+      - application/json
+      description: Places a new wagon order for a client
+      parameters:
+      - description: Order payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/usecase.CreateOrderInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/entity.Order'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Failed to create order
+          schema:
+            type: string
+      summary: Create Order
+      tags:
+      - Order
   /stations:
     get:
       consumes:

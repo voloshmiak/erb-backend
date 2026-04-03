@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 
+	"erb-backend/src/broadcaster"
 	_ "erb-backend/src/docs"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -17,7 +18,7 @@ import (
 )
 
 // @title           Empty Runner Buster API
-// @version         1.0.2
+// @version         1.0.3
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
@@ -53,19 +54,27 @@ func run() error {
 
 	stationRepository := repository.NewStationRepository(conn)
 	wagonRepository := repository.NewWagonRepository(conn)
+	orderRepository := repository.NewOrderRepository(conn)
+
+	b := broadcaster.New()
 
 	listStationsUsecase := usecase.NewListStationsUseCase(stationRepository)
 	fleetStatusUsecase := usecase.NewFleetStatusUseCase(wagonRepository)
+	createOrderUsecase := usecase.NewCreateOrderUseCase(orderRepository, b)
 
 	healthController := controller.NewHealthController()
 	docsController := controller.NewDocsController()
+	eventsStreamController := controller.NewEventsStreamController(b)
 	listStationsController := controller.NewListStationsController(listStationsUsecase)
 	fleetStatusController := controller.NewFleetStatusController(fleetStatusUsecase)
+	createOrderController := controller.NewCreateOrderController(createOrderUsecase)
 
 	router.Handle("GET /api/health", healthController)
 	router.Handle("GET /api/docs", docsController)
 	router.Handle("GET /api/stations", listStationsController)
 	router.Handle("GET /api/fleet/status", fleetStatusController)
+	router.Handle("POST /api/orders", createOrderController)
+	router.Handle("GET /api/events/stream", eventsStreamController)
 	router.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	server := &http.Server{

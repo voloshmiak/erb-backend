@@ -16,6 +16,7 @@ type Config struct {
 		UserPassword string `env:"DB_USER_PASSWORD,required"`
 		Host         string `env:"DB_HOST,required"`
 	}
+	MatchingServiceURL string `env:"MATCHING_SERVICE_URL,required"`
 }
 
 func New() (*Config, error) {

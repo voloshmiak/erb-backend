@@ -35,6 +35,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/events/stream": {
+            "get": {
+                "description": "Server-sent events stream for real-time wagon movement updates",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Events Stream",
+                "responses": {
+                    "200": {
+                        "description": "SSE stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/fleet/status": {
             "get": {
                 "description": "Returns wagon counts by type and status, plus average empty-run km for today",
@@ -71,6 +91,52 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders": {
+            "post": {
+                "description": "Places a new wagon order for a client",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order"
+                ],
+                "summary": "Create Order",
+                "parameters": [
+                    {
+                        "description": "Order payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/usecase.CreateOrderInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/entity.Order"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create order",
                         "schema": {
                             "type": "string"
                         }
@@ -177,6 +243,83 @@ const docTemplate = `{
                 }
             }
         },
+        "entity.Order": {
+            "type": "object",
+            "properties": {
+                "clientName": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "desiredDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "stationToId": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/entity.OrderStatus"
+                },
+                "wagonType": {
+                    "$ref": "#/definitions/entity.WagonType"
+                }
+            }
+        },
+        "entity.OrderStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "matched",
+                "fulfilled",
+                "cancelled"
+            ],
+            "x-enum-varnames": [
+                "Pending",
+                "Matched",
+                "Fulfilled",
+                "Cancelled"
+            ]
+        },
+        "entity.WagonType": {
+            "type": "string",
+            "enum": [
+                "gondola",
+                "grain_hopper",
+                "cement_hopper"
+            ],
+            "x-enum-varnames": [
+                "Gondola",
+                "GrainHopper",
+                "CementHopper"
+            ]
+        },
+        "usecase.CreateOrderInput": {
+            "type": "object",
+            "properties": {
+                "clientName": {
+                    "type": "string"
+                },
+                "desiredDate": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "stationToId": {
+                    "type": "string"
+                },
+                "wagonType": {
+                    "$ref": "#/definitions/entity.WagonType"
+                }
+            }
+        },
         "usecase.WagonTypeStatus": {
             "type": "object",
             "properties": {
@@ -202,7 +345,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0.2",
+	Version:          "1.0.3",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},

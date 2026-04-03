@@ -4,7 +4,7 @@
         "description": "This is the API documentation for the Empty Runner Buster application",
         "title": "Empty Runner Buster API",
         "contact": {},
-        "version": "1.0.2"
+        "version": "1.0.3"
     },
     "basePath": "/api",
     "paths": {
@@ -21,6 +21,26 @@
                 "responses": {
                     "200": {
                         "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/events/stream": {
+            "get": {
+                "description": "Server-sent events stream for real-time wagon movement updates",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Events Stream",
+                "responses": {
+                    "200": {
+                        "description": "SSE stream",
                         "schema": {
                             "type": "string"
                         }
@@ -64,6 +84,52 @@
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders": {
+            "post": {
+                "description": "Places a new wagon order for a client",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order"
+                ],
+                "summary": "Create Order",
+                "parameters": [
+                    {
+                        "description": "Order payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/usecase.CreateOrderInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/entity.Order"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create order",
                         "schema": {
                             "type": "string"
                         }
@@ -167,6 +233,83 @@
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "entity.Order": {
+            "type": "object",
+            "properties": {
+                "clientName": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "desiredDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "stationToId": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/entity.OrderStatus"
+                },
+                "wagonType": {
+                    "$ref": "#/definitions/entity.WagonType"
+                }
+            }
+        },
+        "entity.OrderStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "matched",
+                "fulfilled",
+                "cancelled"
+            ],
+            "x-enum-varnames": [
+                "Pending",
+                "Matched",
+                "Fulfilled",
+                "Cancelled"
+            ]
+        },
+        "entity.WagonType": {
+            "type": "string",
+            "enum": [
+                "gondola",
+                "grain_hopper",
+                "cement_hopper"
+            ],
+            "x-enum-varnames": [
+                "Gondola",
+                "GrainHopper",
+                "CementHopper"
+            ]
+        },
+        "usecase.CreateOrderInput": {
+            "type": "object",
+            "properties": {
+                "clientName": {
+                    "type": "string"
+                },
+                "desiredDate": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "stationToId": {
+                    "type": "string"
+                },
+                "wagonType": {
+                    "$ref": "#/definitions/entity.WagonType"
                 }
             }
         },
