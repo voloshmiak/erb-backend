@@ -36,22 +36,19 @@ func (h *CreateOrderController) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	order, err := h.usecase.Execute(input)
 	if err != nil {
-		if errors.Is(err, usecase.ErrInvalidInput) ||
-			errors.Is(err, usecase.ErrFailedToParseDate) {
-			http.Error(w, errors.Wrap(err, "Missing or invalid fields").Error(),
-				http.StatusBadRequest)
+		if errors.Is(err, usecase.ErrInvalidInput) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
-		http.Error(w, errors.Wrap(err, "Failed to create order").Error(),
-			http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
 
 	if err = json.NewEncoder(w).Encode(order); err != nil {
-		http.Error(w, errors.Wrap(err, "Failed to create order").Error(),
-			http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusCreated)
 }

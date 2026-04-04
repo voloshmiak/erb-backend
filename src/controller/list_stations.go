@@ -5,8 +5,6 @@ import (
 	"erb-backend/src/entity"
 	"erb-backend/src/usecase"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 type ListStationsController struct {
@@ -48,9 +46,7 @@ type listStationsResponse struct {
 func (c *ListStationsController) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	stations, edges, err := c.usecase.Execute()
 	if err != nil {
-		http.Error(w, errors.Wrap(err, "Failed to retrieve stations").Error(),
-			http.StatusInternalServerError,
-		)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -63,9 +59,7 @@ func (c *ListStationsController) ServeHTTP(w http.ResponseWriter, _ *http.Reques
 
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
-		http.Error(w, errors.Wrap(err, "Failed to retrieve stations").Error(),
-			http.StatusInternalServerError,
-		)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

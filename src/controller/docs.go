@@ -17,7 +17,6 @@ func NewDocsController() *DocsController {
 // @Success     200  {string}  string  "HTML page"
 // @Router      /docs [get]
 func (h *DocsController) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	html := `
     <!DOCTYPE html>
     <html>
@@ -32,9 +31,13 @@ func (h *DocsController) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
       </body>
     </html>
     `
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 	_, err := w.Write([]byte(html))
 	if err != nil {
 		http.Error(w, "Failed to load API reference", http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }

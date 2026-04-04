@@ -1,9 +1,15 @@
 package usecase
 
-import "erb-backend/src/entity"
+import (
+	"erb-backend/src/entity"
+
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+)
 
 type WagonRepository interface {
 	ListStatusCounts() ([]entity.WagonStatusCount, error)
+	Exists(id uuid.UUID) (bool, error)
 }
 
 type FleetStatusUseCase struct {
@@ -31,7 +37,7 @@ type FleetStatus struct {
 func (u *FleetStatusUseCase) Execute() (*FleetStatus, error) {
 	counts, err := u.repository.ListStatusCounts()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to list wagon status counts")
 	}
 
 	status := &FleetStatus{

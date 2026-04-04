@@ -5,8 +5,6 @@ import (
 	"erb-backend/src/entity"
 	"erb-backend/src/usecase"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 type FleetStatusController struct {
@@ -36,9 +34,7 @@ type fleetStatusResponse struct {
 func (h *FleetStatusController) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	status, err := h.usecase.Execute()
 	if err != nil {
-		http.Error(w, errors.Wrap(err, "Failed to retrieve fleet status").Error(),
-			http.StatusInternalServerError,
-		)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -55,9 +51,7 @@ func (h *FleetStatusController) ServeHTTP(w http.ResponseWriter, _ *http.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	if err = json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, errors.Wrap(err, "Failed to retrieve fleet status").Error(),
-			http.StatusInternalServerError,
-		)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

@@ -11,9 +11,8 @@ import (
 )
 
 var (
-	ErrDesiredDateInPast = errors.New("desired date cannot be in the past")
-	ErrInvalidInput      = errors.New("invalid input")
-	ErrFailedToParseDate = errors.New("failed to parse desired date")
+	ErrInvalidInput = errors.New("invalid input")
+	ErrNotFound     = errors.New("not found")
 )
 
 type OrderRepository interface {
@@ -27,15 +26,16 @@ type Broadcaster interface {
 }
 
 type CreateOrderUseCase struct {
-	repository  OrderRepository
-	broadcaster Broadcaster
+	wagonRepository WagonRepository
+	orderRepository OrderRepository
+	broadcaster     Broadcaster
 }
 
 func NewCreateOrderUseCase(repository OrderRepository,
 	broadcaster Broadcaster) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
-		repository:  repository,
-		broadcaster: broadcaster,
+		orderRepository: repository,
+		broadcaster:     broadcaster,
 	}
 }
 
@@ -51,23 +51,32 @@ func (u *CreateOrderUseCase) Execute(input CreateOrderInput) (*entity.Order, err
 	if input.ClientName == "" ||
 		input.StationToID.String() == "00000000-0000-0000-0000-000000000000" ||
 		input.Quantity <= 0 {
-		return nil, ErrInvalidInput
+		return nil, errors.Wrap(ErrInvalidInput, "missing or invalid fields")
 	}
 
 	parsedDesiredDate, err := time.Parse(time.DateOnly, input.DesiredDate)
 	if err != nil {
-		return nil, ErrFailedToParseDate
+		return nil, errors.Wrap(err, "failed to parse desired date")
 	}
 
 	if parsedDesiredDate.Before(time.Now()) {
-		return nil, ErrDesiredDateInPast
+		return nil, errors.Wrap(ErrInvalidInput, "desired date cannot be in the past")
+	}
+
+	exists, err := u.wagonRepository.Exists(input.StationToID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check station existence")
+	}
+
+	if !exists {
+		return nil, errors.Wrap(ErrNotFound, "station")
 	}
 
 	order := entity.NewOrder(input.ClientName, input.StationToID, input.WagonType,
 		input.Quantity, parsedDesiredDate)
 
-	if err := u.repository.Create(order); err != nil {
-		return nil, err
+	if err = u.orderRepository.Create(order); err != nil {
+		return nil, errors.Wrap(err, "failed to create order")
 	}
 
 	u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderCreated, order))

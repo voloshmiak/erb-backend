@@ -17,6 +17,12 @@ func NewStationRepository(conn *sql.DB) *StationRepository {
 	return &StationRepository{conn: conn}
 }
 
+func (r *StationRepository) Exists(id uuid.UUID) (bool, error) {
+	var exists bool
+	err := r.conn.QueryRow("SELECT EXISTS(SELECT 1 FROM stations WHERE id = $1)", id).Scan(&exists)
+	return exists, err
+}
+
 func (r *StationRepository) List() ([]*entity.Station, []*entity.Edge, error) {
 	rows, err := r.conn.Query(`
 		SELECT
