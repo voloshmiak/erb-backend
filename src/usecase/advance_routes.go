@@ -4,78 +4,78 @@ import (
 	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
-	"log"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type AdvanceRoutesUseCase struct {
-	routeSteps  RouteStepRepository
-	wagons      WagonRepository
-	assignments AssignmentRepository
-	orders      OrderRepository
-	broadcaster Broadcaster
+	routeStepRepository  RouteStepRepository
+	wagonRepository      WagonRepository
+	assignmentRepository AssignmentRepository
+	orderRepository      OrderRepository
+	broadcaster          Broadcaster
 }
 
 func NewAdvanceRoutesUseCase(
-	routeSteps RouteStepRepository,
-	wagons WagonRepository,
-	assignments AssignmentRepository,
-	orders OrderRepository,
+	routeStepRepository RouteStepRepository,
+	wagonRepository WagonRepository,
+	assignmentRepository AssignmentRepository,
+	orderRepository OrderRepository,
 	b Broadcaster,
 ) *AdvanceRoutesUseCase {
 	return &AdvanceRoutesUseCase{
-		routeSteps:  routeSteps,
-		wagons:      wagons,
-		assignments: assignments,
-		orders:      orders,
-		broadcaster: b,
+		routeStepRepository:  routeStepRepository,
+		wagonRepository:      wagonRepository,
+		assignmentRepository: assignmentRepository,
+		orderRepository:      orderRepository,
+		broadcaster:          b,
 	}
 }
 
-func (uc *AdvanceRoutesUseCase) Execute(ctx context.Context) {
-	activeSteps, err := uc.routeSteps.GetActiveRouteSteps(ctx)
+func (uc *AdvanceRoutesUseCase) Execute(ctx context.Context) error {
+	activeSteps, err := uc.routeStepRepository.GetActiveRouteSteps(ctx)
 	if err != nil {
-		log.Printf("advance_routes: failed to get active steps: %v", err)
-		return
+		return errors.Wrap(err, "failed to get active steps")
 	}
 
 	now := time.Now()
 
 	for _, step := range activeSteps {
-		uc.processStep(ctx, step, now)
+		err = uc.processStep(ctx, step, now)
+		if err != nil {
+			return errors.Wrap(err, "failed to process step")
+		}
 	}
+
+	return nil
 }
 
 func (uc *AdvanceRoutesUseCase) processStep(ctx context.Context,
-	step *entity.ActiveRouteStep, now time.Time) {
-	if err := uc.routeSteps.CompleteRouteStep(ctx, step.ID); err != nil {
-		log.Printf("advance_routes: failed to complete step %s: %v", step.ID, err)
-		return
+	step *entity.ActiveRouteStep, now time.Time) error {
+	if err := uc.routeStepRepository.CompleteRouteStep(ctx, step.ID); err != nil {
+		return errors.Wrap(err, "advance_routes: failed to complete step "+step.ID.String())
 	}
 
-	nextStep, err := uc.routeSteps.GetNextRouteStep(ctx, step.AssignmentID, step.StepIndex+1)
+	nextStep, err := uc.routeStepRepository.GetNextRouteStep(ctx, step.AssignmentID, step.StepIndex+1)
 	if err != nil {
-		log.Printf("advance_routes: failed to get next step for assignment %s: %v",
-			step.AssignmentID, err)
-		return
+		return errors.Wrap(err, "advance_routes: failed to get next step for assignment "+
+			step.AssignmentID.String())
 	}
 
 	if nextStep != nil {
-		uc.advanceToNextStep(ctx, step, nextStep, now)
-	} else {
-		uc.completeAssignment(ctx, step)
+		return uc.advanceToNextStep(ctx, step, nextStep, now)
 	}
+	return uc.completeAssignment(ctx, step)
 }
 
 func (uc *AdvanceRoutesUseCase) advanceToNextStep(ctx context.Context, step *entity.ActiveRouteStep,
-	nextStep *entity.RouteStep, now time.Time) {
-	if err := uc.routeSteps.ActivateRouteStep(ctx, nextStep.ID); err != nil {
-		log.Printf("advance_routes: failed to activate step %s: %v", nextStep.ID, err)
-		return
+	nextStep *entity.RouteStep, now time.Time) error {
+	if err := uc.routeStepRepository.ActivateRouteStep(ctx, nextStep.ID); err != nil {
+		return errors.Wrap(err, "advance_routes: failed to activate step "+nextStep.ID.String())
 	}
-	if err := uc.wagons.UpdateStation(ctx, step.WagonID, nextStep.StationID); err != nil {
-		log.Printf("advance_routes: failed to update wagon station %s: %v", step.WagonID, err)
-		return
+	if err := uc.wagonRepository.UpdateStation(ctx, step.WagonID, nextStep.StationID); err != nil {
+		return errors.Wrap(err, "advance_routes: failed to update wagon station "+step.WagonID.String())
 	}
 	uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.WagonMoved, entity.WagonMovedPayload{
 		WagonID:     step.WagonID,
@@ -88,22 +88,21 @@ func (uc *AdvanceRoutesUseCase) advanceToNextStep(ctx context.Context, step *ent
 		TotalSteps:  step.TotalSteps,
 		ArrivedAt:   now,
 	}))
+
+	return nil
 }
 
 func (uc *AdvanceRoutesUseCase) completeAssignment(ctx context.Context,
-	step *entity.ActiveRouteStep) {
-	if err := uc.wagons.UpdateStatus(ctx, step.WagonID, entity.Loaded); err != nil {
-		log.Printf("advance_routes: failed to update wagon status %s: %v", step.WagonID, err)
-		return
+	step *entity.ActiveRouteStep) error {
+	if err := uc.wagonRepository.UpdateStatus(ctx, step.WagonID, entity.Loaded); err != nil {
+		return errors.Wrap(err, "advance_routes: failed to update wagon status "+step.WagonID.String())
 	}
-	if err := uc.assignments.UpdateStatus(ctx, step.AssignmentID, entity.AssignmentDelivered); err != nil {
-		log.Printf("advance_routes: failed to update assignment status %s: %v", step.AssignmentID, err)
-		return
+	if err := uc.assignmentRepository.UpdateStatus(ctx, step.AssignmentID, entity.AssignmentDelivered); err != nil {
+		return errors.Wrap(err, "advance_routes: failed to update assignment status "+step.AssignmentID.String())
 	}
-	fulfilled, err := uc.orders.UpdateIfFulfilled(ctx, step.OrderID)
+	fulfilled, err := uc.orderRepository.UpdateIfFulfilled(ctx, step.OrderID)
 	if err != nil {
-		log.Printf("advance_routes: failed to update order %s: %v", step.OrderID, err)
-		return
+		return errors.Wrap(err, "advance_routes: failed to update order "+step.OrderID.String())
 	}
 	if fulfilled {
 		uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderFulfilled, step.OrderID))
@@ -113,4 +112,6 @@ func (uc *AdvanceRoutesUseCase) completeAssignment(ctx context.Context,
 		OrderID:      step.OrderID,
 		AssignmentID: step.AssignmentID,
 	}))
+
+	return nil
 }

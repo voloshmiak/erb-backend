@@ -101,7 +101,7 @@ func (u *CreateOrderUseCase) Execute(ctx context.Context, input CreateOrderInput
 
 	go func() {
 		if err = u.match(context.WithoutCancel(ctx)); err != nil {
-			log.Println("failed to match orders after creation:", err)
+			log.Println("failed to match orderRepository after creation:", err)
 		}
 	}()
 
@@ -111,7 +111,7 @@ func (u *CreateOrderUseCase) Execute(ctx context.Context, input CreateOrderInput
 func (u *CreateOrderUseCase) match(ctx context.Context) error {
 	pendingOrders, err := u.orderRepository.GetPending(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to get pending orders")
+		return errors.Wrap(err, "failed to get pending orderRepository")
 	}
 	if len(pendingOrders) == 0 {
 		return nil

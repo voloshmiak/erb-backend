@@ -3,6 +3,7 @@ package ticker
 import (
 	"context"
 	"erb-backend/src/usecase"
+	"log"
 	"time"
 )
 
@@ -40,7 +41,24 @@ func (t *Ticker) Run(ctx context.Context) {
 }
 
 func (t *Ticker) tick(ctx context.Context) {
-	t.unloadWagons.Execute(ctx)
-	t.dispatchPlanned.Execute(ctx)
-	t.advanceRoutes.Execute(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("ticker: panic recovered: ", r)
+		}
+	}()
+	err := t.unloadWagons.Execute(ctx)
+	if err != nil {
+		log.Println("ticker: failed to unload wagons: ", err)
+		return
+	}
+	err = t.dispatchPlanned.Execute(ctx)
+	if err != nil {
+		log.Println("ticker: failed to dispatch planned: ", err)
+		return
+	}
+	err = t.advanceRoutes.Execute(ctx)
+	if err != nil {
+		log.Println("ticker: failed to advance routes: ", err)
+		return
+	}
 }

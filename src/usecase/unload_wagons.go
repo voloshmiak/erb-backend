@@ -4,8 +4,9 @@ import (
 	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
-	"log"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type UnloadWagonsUseCase struct {
@@ -23,18 +24,18 @@ func NewUnloadWagonsUseCase(wagons WagonRepository, b Broadcaster,
 	}
 }
 
-func (uc *UnloadWagonsUseCase) Execute(ctx context.Context) {
+func (uc *UnloadWagonsUseCase) Execute(ctx context.Context) error {
 	wagons, err := uc.wagons.GetLoadedReadyToUnload(ctx, uc.unloadAfter)
 	if err != nil {
-		log.Printf("unload_wagons: failed to get loaded wagons: %v", err)
-		return
+		return errors.Wrap(err, "failed to get loaded wagonRepository")
 	}
 
 	for _, w := range wagons {
 		if err = uc.wagons.UpdateStatus(ctx, w.ID, entity.Idle); err != nil {
-			log.Printf("unload_wagons: failed to update wagon status %s: %v", w.ID, err)
-			continue
+			return errors.Wrap(err, "failed to update wagon status "+w.ID.String())
 		}
 		uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.WagonUnloaded, w))
 	}
+
+	return nil
 }
