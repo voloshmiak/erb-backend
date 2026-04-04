@@ -35,7 +35,7 @@ func (r *WagonRepository) UpdateStatus(ctx context.Context,
 	return err
 }
 
-func (r *WagonRepository) GetLoadedReadyToUnload(ctx context.Context,
+func (r *WagonRepository) FindLoadedReadyToUnload(ctx context.Context,
 	olderThan time.Duration) ([]*entity.LoadedWagon, error) {
 	rows, err := r.conn.QueryContext(ctx, `
 		SELECT w.id::text, w.wagon_number
@@ -96,4 +96,35 @@ func (r *WagonRepository) ListStatusCounts(ctx context.Context) ([]entity.WagonS
 		counts = append(counts, c)
 	}
 	return counts, rows.Err()
+}
+
+func (r *WagonRepository) ListByStatus(ctx context.Context,
+	status entity.WagonStatus) ([]*entity.Wagon, error) {
+	rows, err := r.conn.QueryContext(ctx, `
+		SELECT id::text, wagon_number, wagon_type, current_station_id::text
+		FROM wagons
+		WHERE status = $1
+	`, status)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err = rows.Close(); err != nil {
+			log.Println("failed to close rows:", err)
+		}
+	}()
+
+	var wagons []*entity.Wagon
+	for rows.Next() {
+		var w entity.Wagon
+		var stationIDStr string
+		if err = rows.Scan(&w.ID, &w.Number, &w.Type, &stationIDStr); err != nil {
+			return nil, err
+		}
+		if w.CurrentStationID, err = uuid.Parse(stationIDStr); err != nil {
+			return nil, err
+		}
+		wagons = append(wagons, &w)
+	}
+	return wagons, rows.Err()
 }

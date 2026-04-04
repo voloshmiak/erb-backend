@@ -18,7 +18,7 @@ func NewRouteStepRepository(conn *sql.DB) *RouteStepRepository {
 	return &RouteStepRepository{conn: conn}
 }
 
-func (r *RouteStepRepository) GetActiveRouteSteps(ctx context.Context) ([]*entity.ActiveRouteStep, error) {
+func (r *RouteStepRepository) FindActiveRouteSteps(ctx context.Context) ([]*entity.ActiveRouteStep, error) {
 	rows, err := r.conn.QueryContext(ctx, `
 		SELECT
 			rs.id::text,
@@ -61,7 +61,7 @@ func (r *RouteStepRepository) CompleteRouteStep(ctx context.Context, id uuid.UUI
 	return err
 }
 
-func (r *RouteStepRepository) GetNextRouteStep(ctx context.Context, assignmentID uuid.UUID,
+func (r *RouteStepRepository) FindNextRouteStep(ctx context.Context, assignmentID uuid.UUID,
 	stepIndex int) (*entity.RouteStep, error) {
 	var (
 		id          string

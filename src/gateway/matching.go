@@ -27,8 +27,8 @@ func NewMatchingGateway(url string) *MatchingGateway {
 }
 
 type matchRequest struct {
-	Orders []*entity.Order           `json:"orders"`
-	Wagons []entity.WagonStatusCount `json:"wagons"`
+	Orders []*entity.Order `json:"orders"`
+	Wagons []*entity.Wagon `json:"wagons"`
 }
 
 type matchedAssignment struct {
@@ -45,7 +45,7 @@ type matchResponse struct {
 }
 
 func (g *MatchingGateway) Match(ctx context.Context, orders []*entity.Order,
-	wagons []entity.WagonStatusCount) ([]*entity.AssignmentResult, error) {
+	wagons []*entity.Wagon) ([]*entity.AssignmentResult, error) {
 
 	body, err := json.Marshal(matchRequest{Orders: orders, Wagons: wagons})
 	if err != nil {

@@ -24,7 +24,7 @@ type idleWagon struct {
 }
 
 func (g *MockMatchingGateway) Match(_ context.Context, orders []*entity.Order,
-	_ []entity.WagonStatusCount) ([]*entity.AssignmentResult, error) {
+	_ []*entity.Wagon) ([]*entity.AssignmentResult, error) {
 
 	idle, err := g.queryIdleWagons()
 	if err != nil {

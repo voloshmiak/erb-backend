@@ -25,7 +25,7 @@ func NewUnloadWagonsUseCase(wagons WagonRepository, b Broadcaster,
 }
 
 func (uc *UnloadWagonsUseCase) Execute(ctx context.Context) error {
-	wagons, err := uc.wagons.GetLoadedReadyToUnload(ctx, uc.unloadAfter)
+	wagons, err := uc.wagons.FindLoadedReadyToUnload(ctx, uc.unloadAfter)
 	if err != nil {
 		return errors.Wrap(err, "failed to get loaded wagonRepository")
 	}

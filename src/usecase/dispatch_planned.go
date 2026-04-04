@@ -30,12 +30,12 @@ func NewDispatchPlannedUseCase(
 }
 
 func (uc *DispatchPlannedUseCase) Execute(ctx context.Context) error {
-	a, err := uc.assignments.GetOldestPlanned(ctx)
+	a, err := uc.assignments.FindOldestPlanned(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get oldest planned")
 	}
 	if a == nil {
-		return errors.New("no oldest planned")
+		return nil
 	}
 
 	if err = uc.assignments.UpdateStatus(ctx, a.ID, entity.AssignmentInTransit); err != nil {

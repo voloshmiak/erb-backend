@@ -34,7 +34,7 @@ func NewAdvanceRoutesUseCase(
 }
 
 func (uc *AdvanceRoutesUseCase) Execute(ctx context.Context) error {
-	activeSteps, err := uc.routeStepRepository.GetActiveRouteSteps(ctx)
+	activeSteps, err := uc.routeStepRepository.FindActiveRouteSteps(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get active steps")
 	}
@@ -57,7 +57,7 @@ func (uc *AdvanceRoutesUseCase) processStep(ctx context.Context,
 		return errors.Wrap(err, "advance_routes: failed to complete step "+step.ID.String())
 	}
 
-	nextStep, err := uc.routeStepRepository.GetNextRouteStep(ctx, step.AssignmentID, step.StepIndex+1)
+	nextStep, err := uc.routeStepRepository.FindNextRouteStep(ctx, step.AssignmentID, step.StepIndex+1)
 	if err != nil {
 		return errors.Wrap(err, "advance_routes: failed to get next step for assignment "+
 			step.AssignmentID.String())

@@ -1,6 +1,10 @@
 package entity
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type WagonType string
 
@@ -20,8 +24,12 @@ const (
 )
 
 type Wagon struct {
-	Type   WagonType
-	Status WagonStatus
+	ID               uuid.UUID   `json:"id"`
+	Number           string      `json:"number"`
+	Type             WagonType   `json:"type"`
+	Status           WagonStatus `json:"status"`
+	CurrentStationID uuid.UUID   `json:"currentStationId"`
+	LastUnloadTime   time.Time   `json:"lastUnloadTime"`
 }
 
 type WagonStatusCount struct {

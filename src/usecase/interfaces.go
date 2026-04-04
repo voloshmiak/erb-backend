@@ -10,9 +10,9 @@ import (
 )
 
 type RouteStepRepository interface {
-	GetActiveRouteSteps(ctx context.Context) ([]*entity.ActiveRouteStep, error)
+	FindActiveRouteSteps(ctx context.Context) ([]*entity.ActiveRouteStep, error)
 	CompleteRouteStep(ctx context.Context, id uuid.UUID) error
-	GetNextRouteStep(ctx context.Context, assignmentID uuid.UUID,
+	FindNextRouteStep(ctx context.Context, assignmentID uuid.UUID,
 		stepIndex int) (*entity.RouteStep, error)
 	ActivateRouteStep(ctx context.Context, id uuid.UUID) error
 	CreateForAssignment(ctx context.Context, assignmentID uuid.UUID,
@@ -21,13 +21,13 @@ type RouteStepRepository interface {
 
 type AssignmentRepository interface {
 	Create(ctx context.Context, assignment *entity.Assignment) error
-	GetOldestPlanned(ctx context.Context) (*entity.PlannedAssignment, error)
+	FindOldestPlanned(ctx context.Context) (*entity.PlannedAssignment, error)
 	UpdateStatus(ctx context.Context, assignmentID uuid.UUID, status entity.AssignmentStatus) error
 }
 
 type OrderRepository interface {
 	Create(ctx context.Context, order *entity.Order) error
-	GetPending(ctx context.Context) ([]*entity.Order, error)
+	FindPending(ctx context.Context) ([]*entity.Order, error)
 	UpdateIfFulfilled(ctx context.Context, orderID uuid.UUID) (bool, error)
 	UpdateStatus(ctx context.Context, orderID uuid.UUID, status entity.OrderStatus) error
 }
@@ -40,7 +40,8 @@ type Broadcaster interface {
 
 type WagonRepository interface {
 	ListStatusCounts(ctx context.Context) ([]entity.WagonStatusCount, error)
-	GetLoadedReadyToUnload(ctx context.Context, olderThan time.Duration) ([]*entity.LoadedWagon, error)
+	ListByStatus(ctx context.Context, status entity.WagonStatus) ([]*entity.Wagon, error)
+	FindLoadedReadyToUnload(ctx context.Context, olderThan time.Duration) ([]*entity.LoadedWagon, error)
 	UpdateStation(ctx context.Context, wagonID, stationID uuid.UUID) error
 	UpdateStatus(ctx context.Context, wagonID uuid.UUID, status entity.WagonStatus) error
 }
@@ -52,5 +53,5 @@ type StationRepository interface {
 
 type MatchingGateway interface {
 	Match(ctx context.Context, orders []*entity.Order,
-		wagons []entity.WagonStatusCount) ([]*entity.AssignmentResult, error)
+		wagons []*entity.Wagon) ([]*entity.AssignmentResult, error)
 }

@@ -109,7 +109,7 @@ func (u *CreateOrderUseCase) Execute(ctx context.Context, input CreateOrderInput
 }
 
 func (u *CreateOrderUseCase) match(ctx context.Context) error {
-	pendingOrders, err := u.orderRepository.GetPending(ctx)
+	pendingOrders, err := u.orderRepository.FindPending(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get pending orderRepository")
 	}
@@ -117,7 +117,7 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 		return nil
 	}
 
-	wagons, err := u.wagonRepository.ListStatusCounts(ctx)
+	wagons, err := u.wagonRepository.ListByStatus(ctx, entity.Idle)
 	if err != nil {
 		return errors.Wrap(err, "failed to get wagon counts")
 	}

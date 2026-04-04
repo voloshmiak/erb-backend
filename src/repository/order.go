@@ -17,9 +17,10 @@ func NewOrderRepository(conn *sql.DB) *OrderRepository {
 	return &OrderRepository{conn: conn}
 }
 
-func (r *OrderRepository) GetPending(ctx context.Context) ([]*entity.Order, error) {
+func (r *OrderRepository) FindPending(ctx context.Context) ([]*entity.Order, error) {
 	rows, err := r.conn.QueryContext(ctx, `
-		SELECT id::text, client_name, station_to_id::text, wagon_type, quantity, desired_date, status, created_at
+		SELECT id::text, client_name, station_to_id::text, wagon_type, 
+		       quantity, desired_date, status, created_at
 		FROM orders
 		WHERE status = $1
 	`, entity.Pending)

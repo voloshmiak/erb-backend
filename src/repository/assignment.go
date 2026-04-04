@@ -27,7 +27,7 @@ func (r *AssignmentRepository) Create(ctx context.Context, assignment *entity.As
 	return err
 }
 
-func (r *AssignmentRepository) GetOldestPlanned(ctx context.Context) (*entity.PlannedAssignment, error) {
+func (r *AssignmentRepository) FindOldestPlanned(ctx context.Context) (*entity.PlannedAssignment, error) {
 	var id, orderID, wagonID, firstStepID string
 	err := r.conn.QueryRowContext(ctx, `
 		SELECT a.id::text, a.order_id::text, a.wagon_id::text, rs.id::text
