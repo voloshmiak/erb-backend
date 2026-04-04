@@ -46,6 +46,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	defer func(conn *sql.DB) {
+		err = conn.Close()
+		if err != nil {
+			log.Println("failed to close database connection: ", err)
+		}
+	}(conn)
 
 	if err = conn.Ping(); err != nil {
 		return err

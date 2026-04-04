@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"erb-backend/src/entity"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -60,7 +62,12 @@ func (g *MatchingGateway) Match(ctx context.Context, orders []*entity.Order,
 	if err != nil {
 		return nil, fmt.Errorf("do request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println("failed to close response body: ", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
