@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"erb-backend/src/config"
 	"erb-backend/src/controller"
+	"erb-backend/src/gateway"
 	"erb-backend/src/repository"
+	"erb-backend/src/ticker"
 	"erb-backend/src/usecase"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"erb-backend/src/broadcaster"
 	_ "erb-backend/src/docs"
@@ -55,12 +59,27 @@ func run() error {
 	stationRepository := repository.NewStationRepository(conn)
 	wagonRepository := repository.NewWagonRepository(conn)
 	orderRepository := repository.NewOrderRepository(conn)
+	assignmentRepository := repository.NewAssignmentRepository(conn)
+	routeStepRepository := repository.NewRouteStepRepository(conn)
 
 	b := broadcaster.New()
+	matchingGateway := gateway.NewMockMatchingGateway(conn)
 
 	listStationsUsecase := usecase.NewListStationsUseCase(stationRepository)
 	fleetStatusUsecase := usecase.NewFleetStatusUseCase(wagonRepository)
-	createOrderUsecase := usecase.NewCreateOrderUseCase(orderRepository, b)
+	createOrderUsecase := usecase.NewCreateOrderUseCase(orderRepository, stationRepository,
+		assignmentRepository, routeStepRepository, wagonRepository, b, matchingGateway)
+	advanceRoutesUsecase := usecase.NewAdvanceRoutesUseCase(routeStepRepository,
+		wagonRepository, assignmentRepository, orderRepository, b)
+	dispatchPlannedUsecase := usecase.NewDispatchPlannedUseCase(assignmentRepository,
+		routeStepRepository, wagonRepository, b)
+	unloadWagonsUsecase := usecase.NewUnloadWagonsUseCase(wagonRepository, b, 30*time.Second)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	t := ticker.NewTicker(10*time.Second, dispatchPlannedUsecase, advanceRoutesUsecase, unloadWagonsUsecase)
+	go t.Run(ctx)
 
 	healthController := controller.NewHealthController()
 	docsController := controller.NewDocsController()

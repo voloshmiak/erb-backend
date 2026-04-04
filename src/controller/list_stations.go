@@ -43,8 +43,8 @@ type listStationsResponse struct {
 // @Success     200 {object} listStationsResponse
 // @Failure     500 {object} string "Failed to retrieve stations"
 // @Router      /stations [get]
-func (c *ListStationsController) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
-	stations, edges, err := c.usecase.Execute()
+func (c *ListStationsController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	stations, edges, err := c.usecase.Execute(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

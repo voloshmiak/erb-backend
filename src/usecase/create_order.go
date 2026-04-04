@@ -1,8 +1,10 @@
 package usecase
 
 import (
+	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
+	"log"
 	"time"
 
 	"github.com/pkg/errors"
@@ -15,27 +17,33 @@ var (
 	ErrNotFound     = errors.New("not found")
 )
 
-type OrderRepository interface {
-	Create(order *entity.Order) error
-}
-
-type Broadcaster interface {
-	Subscribe() chan string
-	Unsubscribe(chan string)
-	Publish(broadcaster.Event)
-}
-
 type CreateOrderUseCase struct {
-	wagonRepository WagonRepository
-	orderRepository OrderRepository
-	broadcaster     Broadcaster
+	orderRepository      OrderRepository
+	stationRepository    StationRepository
+	assignmentRepository AssignmentRepository
+	routeStepRepository  RouteStepRepository
+	wagonRepository      WagonRepository
+	broadcaster          Broadcaster
+	mathcingGateway      MatchingGateway
 }
 
-func NewCreateOrderUseCase(repository OrderRepository,
-	broadcaster Broadcaster) *CreateOrderUseCase {
+func NewCreateOrderUseCase(
+	orderRepository OrderRepository,
+	stationRepository StationRepository,
+	assignmentRepository AssignmentRepository,
+	routeStepRepository RouteStepRepository,
+	wagonRepository WagonRepository,
+	broadcaster Broadcaster,
+	matchingGateway MatchingGateway,
+) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
-		orderRepository: repository,
-		broadcaster:     broadcaster,
+		orderRepository:      orderRepository,
+		stationRepository:    stationRepository,
+		assignmentRepository: assignmentRepository,
+		routeStepRepository:  routeStepRepository,
+		wagonRepository:      wagonRepository,
+		broadcaster:          broadcaster,
+		mathcingGateway:      matchingGateway,
 	}
 }
 
@@ -47,11 +55,22 @@ type CreateOrderInput struct {
 	DesiredDate string           `json:"desiredDate"`
 }
 
-func (u *CreateOrderUseCase) Execute(input CreateOrderInput) (*entity.Order, error) {
-	if input.ClientName == "" ||
-		input.StationToID.String() == "00000000-0000-0000-0000-000000000000" ||
-		input.Quantity <= 0 {
-		return nil, errors.Wrap(ErrInvalidInput, "missing or invalid fields")
+func (i *CreateOrderInput) validate() error {
+	if i.ClientName == "" {
+		return errors.Wrap(ErrInvalidInput, "client name is required")
+	}
+	if i.StationToID.String() == "00000000-0000-0000-0000-000000000000" {
+		return errors.Wrap(ErrInvalidInput, "station ID is required")
+	}
+	if i.Quantity <= 0 {
+		return errors.Wrap(ErrInvalidInput, "quantity must be greater than zero")
+	}
+	return nil
+}
+
+func (u *CreateOrderUseCase) Execute(ctx context.Context, input CreateOrderInput) (*entity.Order, error) {
+	if err := input.validate(); err != nil {
+		return nil, err
 	}
 
 	parsedDesiredDate, err := time.Parse(time.DateOnly, input.DesiredDate)
@@ -63,11 +82,10 @@ func (u *CreateOrderUseCase) Execute(input CreateOrderInput) (*entity.Order, err
 		return nil, errors.Wrap(ErrInvalidInput, "desired date cannot be in the past")
 	}
 
-	exists, err := u.wagonRepository.Exists(input.StationToID)
+	exists, err := u.stationRepository.Exists(ctx, input.StationToID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to check station existence")
 	}
-
 	if !exists {
 		return nil, errors.Wrap(ErrNotFound, "station")
 	}
@@ -75,11 +93,63 @@ func (u *CreateOrderUseCase) Execute(input CreateOrderInput) (*entity.Order, err
 	order := entity.NewOrder(input.ClientName, input.StationToID, input.WagonType,
 		input.Quantity, parsedDesiredDate)
 
-	if err = u.orderRepository.Create(order); err != nil {
+	if err = u.orderRepository.Create(ctx, order); err != nil {
 		return nil, errors.Wrap(err, "failed to create order")
 	}
 
 	u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderCreated, order))
 
+	go func() {
+		if err = u.match(context.WithoutCancel(ctx)); err != nil {
+			log.Println("failed to match orders after creation:", err)
+		}
+	}()
+
 	return order, nil
+}
+
+func (u *CreateOrderUseCase) match(ctx context.Context) error {
+	pendingOrders, err := u.orderRepository.GetPending(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get pending orders")
+	}
+	if len(pendingOrders) == 0 {
+		return nil
+	}
+
+	wagons, err := u.wagonRepository.ListStatusCounts(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get wagon counts")
+	}
+
+	results, err := u.mathcingGateway.Match(ctx, pendingOrders, wagons)
+	if err != nil {
+		return errors.Wrap(err, "matching service failed")
+	}
+
+	for _, r := range results {
+		r.Assignment.ID = uuid.New()
+		r.Assignment.Status = entity.AssignmentPlanned
+
+		if err = u.assignmentRepository.Create(ctx, r.Assignment); err != nil {
+			log.Printf("match: failed to create assignment for order %s: %v", r.Assignment.OrderID, err)
+			continue
+		}
+
+		for i, stationID := range r.Route {
+			if err = u.routeStepRepository.CreateForAssignment(ctx, r.Assignment.ID,
+				i, stationID); err != nil {
+				log.Printf("match: failed to create route step %d for assignment %s: %v",
+					i, r.Assignment.ID, err)
+			}
+		}
+
+		if err = u.orderRepository.UpdateStatus(ctx, r.Assignment.OrderID, entity.Matched); err != nil {
+			log.Printf("match: failed to update order status %s: %v", r.Assignment.OrderID, err)
+		}
+
+		u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.AssignmentCreated, r.Assignment))
+	}
+
+	return nil
 }

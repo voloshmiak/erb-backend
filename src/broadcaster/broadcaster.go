@@ -35,7 +35,13 @@ func (b *Broadcaster) Unsubscribe(ch chan string) {
 type EventType string
 
 const (
-	OrderCreated EventType = "orderCreated"
+	OrderCreated      EventType = "orderCreated"
+	WagonMoved        EventType = "wagonMoved"
+	WagonArrived      EventType = "wagonArrived"
+	AssignmentCreated EventType = "assignmentCreated"
+	WagonDispatched   EventType = "wagonDispatched"
+	OrderFulfilled    EventType = "orderFulfilled"
+	WagonUnloaded     EventType = "wagonUnloaded"
 )
 
 type Event struct {

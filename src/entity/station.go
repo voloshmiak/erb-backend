@@ -28,13 +28,3 @@ type Station struct {
 	Capacity  int       `json:"capacity"`
 	CreatedAt time.Time `json:"createdAt"`
 }
-
-func NewStation(name string, stationType Type, location Location, capacity int) *Station {
-	return &Station{
-		ID:       uuid.New(),
-		Name:     name,
-		Type:     stationType,
-		Location: location,
-		Capacity: capacity,
-	}
-}

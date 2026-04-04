@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"erb-backend/src/entity"
 	"log"
@@ -17,14 +18,15 @@ func NewStationRepository(conn *sql.DB) *StationRepository {
 	return &StationRepository{conn: conn}
 }
 
-func (r *StationRepository) Exists(id uuid.UUID) (bool, error) {
+func (r *StationRepository) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	var exists bool
-	err := r.conn.QueryRow("SELECT EXISTS(SELECT 1 FROM stations WHERE id = $1)", id).Scan(&exists)
+	err := r.conn.QueryRowContext(ctx,
+		"SELECT EXISTS(SELECT 1 FROM stations WHERE id = $1)", id).Scan(&exists)
 	return exists, err
 }
 
-func (r *StationRepository) List() ([]*entity.Station, []*entity.Edge, error) {
-	rows, err := r.conn.Query(`
+func (r *StationRepository) List(ctx context.Context) ([]*entity.Station, []*entity.Edge, error) {
+	rows, err := r.conn.QueryContext(ctx, `
 		SELECT
 			s.id::text,
 			s.name,
@@ -122,7 +124,8 @@ func scanRow(rows *sql.Rows) (*entity.Station, *entity.Edge, error) {
 	return station, edge, nil
 }
 
-func parseStation(id, name, stationType string, lat, lng float64, capacity int, createdAt time.Time) (*entity.Station, error) {
+func parseStation(id, name, stationType string, lat, lng float64,
+	capacity int, createdAt time.Time) (*entity.Station, error) {
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
@@ -137,7 +140,8 @@ func parseStation(id, name, stationType string, lat, lng float64, capacity int, 
 	}, nil
 }
 
-func parseEdge(id, fromID, toID sql.NullString, distKM sql.NullInt64, createdAt sql.NullTime) (*entity.Edge, error) {
+func parseEdge(id, fromID, toID sql.NullString, distKM sql.NullInt64,
+	createdAt sql.NullTime) (*entity.Edge, error) {
 	if !id.Valid {
 		return nil, nil
 	}

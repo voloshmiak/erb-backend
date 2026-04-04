@@ -34,7 +34,7 @@ func (h *CreateOrderController) ServeHTTP(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	order, err := h.usecase.Execute(input)
+	order, err := h.usecase.Execute(r.Context(), input)
 	if err != nil {
 		if errors.Is(err, usecase.ErrInvalidInput) {
 			http.Error(w, err.Error(), http.StatusBadRequest)

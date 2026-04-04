@@ -1,8 +1,13 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"erb-backend/src/entity"
+	"log"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 type WagonRepository struct {
@@ -13,8 +18,62 @@ func NewWagonRepository(conn *sql.DB) *WagonRepository {
 	return &WagonRepository{conn: conn}
 }
 
-func (r *WagonRepository) ListStatusCounts() ([]entity.WagonStatusCount, error) {
-	rows, err := r.conn.Query(`
+func (r *WagonRepository) UpdateStation(ctx context.Context, wagonID, stationID uuid.UUID) error {
+	_, err := r.conn.ExecContext(ctx,
+		"UPDATE wagons SET current_station_id = $1 WHERE id = $2",
+		stationID, wagonID,
+	)
+	return err
+}
+
+func (r *WagonRepository) UpdateStatus(ctx context.Context,
+	wagonID uuid.UUID, status entity.WagonStatus) error {
+	_, err := r.conn.ExecContext(ctx,
+		"UPDATE wagons SET status = $1 WHERE id = $2",
+		status, wagonID,
+	)
+	return err
+}
+
+func (r *WagonRepository) GetLoadedReadyToUnload(ctx context.Context,
+	olderThan time.Duration) ([]*entity.LoadedWagon, error) {
+	rows, err := r.conn.QueryContext(ctx, `
+		SELECT w.id::text, w.wagon_number
+		FROM wagons w
+		WHERE w.status = $1
+		AND (
+			SELECT MAX(rs.arrived_at)
+			FROM route_steps rs
+			JOIN assignments a ON a.id = rs.assignment_id
+			WHERE a.wagon_id = w.id AND rs.arrived_at IS NOT NULL
+		) < NOW() - ($2 * interval '1 second')
+	`, entity.Loaded, olderThan.Seconds())
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err = rows.Close(); err != nil {
+			log.Println("failed to close rows:", err)
+		}
+	}()
+
+	var wagons []*entity.LoadedWagon
+	for rows.Next() {
+		var idStr string
+		w := &entity.LoadedWagon{}
+		if err = rows.Scan(&idStr, &w.WagonNumber); err != nil {
+			return nil, err
+		}
+		if w.ID, err = uuid.Parse(idStr); err != nil {
+			return nil, err
+		}
+		wagons = append(wagons, w)
+	}
+	return wagons, rows.Err()
+}
+
+func (r *WagonRepository) ListStatusCounts(ctx context.Context) ([]entity.WagonStatusCount, error) {
+	rows, err := r.conn.QueryContext(ctx, `
 		SELECT wagon_type, status, COUNT(*) AS count
 		FROM wagons
 		GROUP BY wagon_type, status
@@ -22,7 +81,11 @@ func (r *WagonRepository) ListStatusCounts() ([]entity.WagonStatusCount, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() {
+		if err = rows.Close(); err != nil {
+			log.Println("failed to close rows:", err)
+		}
+	}()
 
 	var counts []entity.WagonStatusCount
 	for rows.Next() {

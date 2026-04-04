@@ -31,8 +31,8 @@ type fleetStatusResponse struct {
 // @Success     200  {object}  fleetStatusResponse
 // @Failure     500  {object}  string  "Failed to retrieve fleet status"
 // @Router      /fleet/status [get]
-func (h *FleetStatusController) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
-	status, err := h.usecase.Execute()
+func (h *FleetStatusController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	status, err := h.usecase.Execute(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

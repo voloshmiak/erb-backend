@@ -1,14 +1,11 @@
 package usecase
 
 import (
+	"context"
 	"erb-backend/src/entity"
 
 	"github.com/pkg/errors"
 )
-
-type StationRepository interface {
-	List() ([]*entity.Station, []*entity.Edge, error)
-}
 
 type ListStationsUseCase struct {
 	repository StationRepository
@@ -20,8 +17,9 @@ func NewListStationsUseCase(repository StationRepository) *ListStationsUseCase {
 	}
 }
 
-func (u *ListStationsUseCase) Execute() ([]*entity.Station, []*entity.Edge, error) {
-	stations, edges, err := u.repository.List()
+func (u *ListStationsUseCase) Execute(ctx context.Context) ([]*entity.Station,
+	[]*entity.Edge, error) {
+	stations, edges, err := u.repository.List(ctx)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to list stations")
 	}

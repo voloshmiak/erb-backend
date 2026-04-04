@@ -1,5 +1,7 @@
 package entity
 
+import "github.com/google/uuid"
+
 type WagonType string
 
 const (
@@ -26,4 +28,9 @@ type WagonStatusCount struct {
 	Type   WagonType
 	Status WagonStatus
 	Count  int
+}
+
+type LoadedWagon struct {
+	ID          uuid.UUID
+	WagonNumber string
 }
