@@ -22,7 +22,7 @@ import (
 )
 
 // @title           Empty Runner Buster API
-// @version         1.0.3
+// @version         1.0.4
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
