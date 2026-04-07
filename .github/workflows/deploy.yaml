@@ -45,4 +45,4 @@ jobs:
             DB_USER=${{ secrets.DB_USER }}
             DB_USER_PASSWORD=${{ secrets.DB_USER_PASSWORD }}
             DB_HOST=${{ secrets.DB_HOST }}
-            MATCHING_SERVICE_URL=aaaaa
+            MATCHING_SERVICE_URL=https://erb-matching-762050733390.europe-central2.run.app
