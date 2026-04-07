@@ -85,3 +85,38 @@ func (r *OrderRepository) Create(ctx context.Context, order *entity.Order) error
 		order.Quantity, order.DesiredDate, order.Status, order.CreatedAt)
 	return err
 }
+
+func (r *OrderRepository) List(ctx context.Context) ([]*entity.Order, error) {
+	rows, err := r.conn.QueryContext(ctx, `
+		SELECT id::text, client_name, station_to_id::text, wagon_type, 
+		       quantity, desired_date, status, created_at
+		FROM orders
+		ORDER BY created_at
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		if err = rows.Close(); err != nil {
+			log.Println("failed to close rows:", err)
+		}
+	}(rows)
+
+	var orders []*entity.Order
+	for rows.Next() {
+		var idStr, stationToIDStr string
+		o := &entity.Order{}
+		if err = rows.Scan(&idStr, &o.ClientName, &stationToIDStr, &o.WagonType,
+			&o.Quantity, &o.DesiredDate, &o.Status, &o.CreatedAt); err != nil {
+			return nil, err
+		}
+		if o.ID, err = uuid.Parse(idStr); err != nil {
+			return nil, err
+		}
+		if o.StationToID, err = uuid.Parse(stationToIDStr); err != nil {
+			return nil, err
+		}
+		orders = append(orders, o)
+	}
+	return orders, rows.Err()
+}

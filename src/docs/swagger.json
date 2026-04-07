@@ -4,7 +4,7 @@
         "description": "This is the API documentation for the Empty Runner Buster application",
         "title": "Empty Runner Buster API",
         "contact": {},
-        "version": "1.0.6"
+        "version": "1.0.7"
     },
     "basePath": "/api",
     "paths": {
@@ -92,6 +92,33 @@
             }
         },
         "/orders": {
+            "get": {
+                "description": "Retrieves all orders and their current status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order"
+                ],
+                "summary": "List Orders",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.listOrdersResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve orders",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Places a new wagon order for a client",
                 "consumes": [
@@ -225,6 +252,17 @@
                 },
                 "totalWagons": {
                     "type": "integer"
+                }
+            }
+        },
+        "controller.listOrdersResponse": {
+            "type": "object",
+            "properties": {
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/entity.Order"
+                    }
                 }
             }
         },

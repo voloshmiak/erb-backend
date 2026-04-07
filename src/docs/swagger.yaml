@@ -20,6 +20,13 @@ definitions:
       totalWagons:
         type: integer
     type: object
+  controller.listOrdersResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/entity.Order'
+        type: array
+    type: object
   controller.listStationsResponse:
     properties:
       edges:
@@ -149,7 +156,7 @@ info:
   contact: {}
   description: This is the API documentation for the Empty Runner Buster application
   title: Empty Runner Buster API
-  version: 1.0.6
+  version: 1.0.7
 paths:
   /docs:
     get:
@@ -207,6 +214,24 @@ paths:
       tags:
       - System
   /orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all orders and their current status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.listOrdersResponse'
+        "500":
+          description: Failed to retrieve orders
+          schema:
+            type: string
+      summary: List Orders
+      tags:
+      - Order
     post:
       consumes:
       - application/json

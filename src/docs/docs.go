@@ -99,6 +99,33 @@ const docTemplate = `{
             }
         },
         "/orders": {
+            "get": {
+                "description": "Retrieves all orders and their current status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order"
+                ],
+                "summary": "List Orders",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.listOrdersResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve orders",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Places a new wagon order for a client",
                 "consumes": [
@@ -232,6 +259,17 @@ const docTemplate = `{
                 },
                 "totalWagons": {
                     "type": "integer"
+                }
+            }
+        },
+        "controller.listOrdersResponse": {
+            "type": "object",
+            "properties": {
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/entity.Order"
+                    }
                 }
             }
         },
@@ -423,7 +461,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0.6",
+	Version:          "1.0.7",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},

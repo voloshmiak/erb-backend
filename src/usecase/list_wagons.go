@@ -20,7 +20,7 @@ func NewListWagonsUseCase(repository WagonRepository) *ListWagonsUseCase {
 func (u *ListWagonsUseCase) Execute(ctx context.Context) ([]*entity.Wagon, error) {
 	wagons, err := u.repository.List(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list stations")
+		return nil, errors.Wrap(err, "failed to list orders")
 	}
 	return wagons, nil
 }
