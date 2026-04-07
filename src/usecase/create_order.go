@@ -24,7 +24,7 @@ type CreateOrderUseCase struct {
 	routeStepRepository  RouteStepRepository
 	wagonRepository      WagonRepository
 	broadcaster          Broadcaster
-	mathcingGateway      MatchingGateway
+	matchingGateway      MatchingGateway
 }
 
 func NewCreateOrderUseCase(
@@ -43,7 +43,7 @@ func NewCreateOrderUseCase(
 		routeStepRepository:  routeStepRepository,
 		wagonRepository:      wagonRepository,
 		broadcaster:          broadcaster,
-		mathcingGateway:      matchingGateway,
+		matchingGateway:      matchingGateway,
 	}
 }
 
@@ -109,11 +109,11 @@ func (u *CreateOrderUseCase) Execute(ctx context.Context, input CreateOrderInput
 }
 
 func (u *CreateOrderUseCase) match(ctx context.Context) error {
-	pendingOrders, err := u.orderRepository.FindPending(ctx)
+	orders, err := u.orderRepository.FindPending(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get pending orderRepository")
 	}
-	if len(pendingOrders) == 0 {
+	if len(orders) == 0 {
 		return nil
 	}
 
@@ -122,7 +122,12 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 		return errors.Wrap(err, "failed to get wagon counts")
 	}
 
-	results, err := u.mathcingGateway.Match(ctx, pendingOrders, wagons)
+	stations, edges, err := u.stationRepository.List(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get stations and edges")
+	}
+
+	results, err := u.matchingGateway.Match(ctx, orders, wagons, stations, edges)
 	if err != nil {
 		return errors.Wrap(err, "matching service failed")
 	}

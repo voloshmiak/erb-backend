@@ -54,6 +54,6 @@ type StationRepository interface {
 }
 
 type MatchingGateway interface {
-	Match(ctx context.Context, orders []*entity.Order,
-		wagons []*entity.Wagon) ([]*entity.AssignmentResult, error)
+	Match(ctx context.Context, orders []*entity.Order, wagons []*entity.Wagon,
+		stations []*entity.Station, edges []*entity.Edge) ([]*entity.AssignmentResult, error)
 }

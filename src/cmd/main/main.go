@@ -22,7 +22,7 @@ import (
 )
 
 // @title           Empty Runner Buster API
-// @version         1.0.7
+// @version         1.1.0
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
@@ -69,7 +69,7 @@ func run() error {
 	routeStepRepository := repository.NewRouteStepRepository(conn)
 
 	b := broadcaster.New()
-	matchingGateway := gateway.NewMockMatchingGateway(conn)
+	matchingGateway := gateway.NewMatchingGateway(cfg.MatchingServiceURL)
 
 	listStationsUsecase := usecase.NewListStationsUseCase(stationRepository)
 	fleetStatusUsecase := usecase.NewFleetStatusUseCase(wagonRepository)

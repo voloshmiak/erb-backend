@@ -8,10 +8,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+)
+
+const (
+	matchEndpoint = "/api/match"
 )
 
 type MatchingGateway struct {
@@ -26,33 +31,153 @@ func NewMatchingGateway(url string) *MatchingGateway {
 	}
 }
 
+type orderDTO struct {
+	OrderID     string `json:"order_id"`
+	StationToID string `json:"station_to_id"`
+	WagonType   string `json:"wagon_type"`
+	Quantity    int    `json:"quantity"`
+	DesiredDate string `json:"desired_date"`
+}
+
+type wagonDTO struct {
+	WagonID          string  `json:"wagon_id"`
+	WagonNumber      string  `json:"wagon_number"`
+	WagonType        string  `json:"wagon_type"`
+	CurrentStationID string  `json:"current_station_id"`
+	IdleDays         float64 `json:"idle_days"`
+}
+
+type stationDTO struct {
+	StationID string  `json:"station_id"`
+	Name      string  `json:"name"`
+	Type      string  `json:"type"`
+	Lat       float64 `json:"lat"`
+	Lng       float64 `json:"lng"`
+}
+
+type edgeDTO struct {
+	FromStationID string  `json:"from_station_id"`
+	ToStationID   string  `json:"to_station_id"`
+	DistanceKM    float64 `json:"distance_km"`
+}
+
 type matchRequest struct {
-	Orders []*entity.Order `json:"orders"`
-	Wagons []*entity.Wagon `json:"wagons"`
+	Orders   []orderDTO   `json:"orders"`
+	Wagons   []wagonDTO   `json:"wagons"`
+	Stations []stationDTO `json:"stations"`
+	Edges    []edgeDTO    `json:"edges"`
 }
 
 type matchedAssignment struct {
-	OrderID          string    `json:"order_id"`
-	WagonID          string    `json:"wagon_id"`
-	Route            []string  `json:"route"`
-	EmptyRunKM       int       `json:"empty_run_km"`
-	CostEmptyRun     int       `json:"cost_empty_run"`
-	EstimatedArrival time.Time `json:"estimated_arrival"`
+	OrderID        string   `json:"order_id"`
+	WagonID        string   `json:"wagon_id"`
+	WagonNumber    string   `json:"wagon_number"`
+	Route          []string `json:"route"`
+	EmptyRunKM     float64  `json:"empty_run_km"`
+	CostEmptyRun   float64  `json:"cost_empty_run"`
+	EstimatedHours float64  `json:"estimated_hours"`
+}
+
+type unmatchedOrder struct {
+	OrderID string `json:"order_id"`
+	Reason  string `json:"reason"`
+}
+
+type matchMetrics struct {
+	TotalEmptyKM    float64 `json:"total_empty_km"`
+	AvgEmptyRunKM   float64 `json:"avg_empty_run_km"`
+	TotalCost       float64 `json:"total_cost"`
+	NaiveTotalCost  float64 `json:"naive_total_cost"`
+	CostSaved       float64 `json:"cost_saved"`
+	MatchRate       float64 `json:"match_rate"`
+	WagonsMatched   int     `json:"wagons_matched"`
+	OrdersMatched   int     `json:"orders_matched"`
+	OrdersUnmatched int     `json:"orders_unmatched"`
 }
 
 type matchResponse struct {
-	Assignments []matchedAssignment `json:"assignments"`
+	Assignments     []matchedAssignment `json:"assignments"`
+	UnmatchedOrders []unmatchedOrder    `json:"unmatched_orders"`
+	Metrics         matchMetrics        `json:"metrics"`
+}
+
+// Conversion helpers
+
+func toOrderDTOs(orders []*entity.Order) []orderDTO {
+	out := make([]orderDTO, 0, len(orders))
+	for _, o := range orders {
+		out = append(out, orderDTO{
+			OrderID:     o.ID.String(),
+			StationToID: o.StationToID.String(),
+			WagonType:   string(o.WagonType),
+			Quantity:    o.Quantity,
+			DesiredDate: o.DesiredDate.Format(time.DateOnly),
+		})
+	}
+	return out
+}
+
+func toWagonDTOs(wagons []*entity.Wagon) []wagonDTO {
+	out := make([]wagonDTO, 0, len(wagons))
+	for _, w := range wagons {
+		idleDays := time.Since(w.LastUnloadTime).Hours() / 24
+		out = append(out, wagonDTO{
+			WagonID:          w.ID.String(),
+			WagonNumber:      w.Number,
+			WagonType:        string(w.Type),
+			CurrentStationID: w.CurrentStationID.String(),
+			IdleDays:         idleDays,
+		})
+	}
+	return out
+}
+
+func toStationDTOs(stations []*entity.Station) []stationDTO {
+	out := make([]stationDTO, 0, len(stations))
+	for _, s := range stations {
+		out = append(out, stationDTO{
+			StationID: s.ID.String(),
+			Name:      s.Name,
+			Type:      string(s.Type),
+			Lat:       s.Location.Latitude,
+			Lng:       s.Location.Longitude,
+		})
+	}
+	return out
+}
+
+func toEdgeDTOs(edges []*entity.Edge) []edgeDTO {
+	out := make([]edgeDTO, 0, len(edges))
+	for _, e := range edges {
+		if !e.IsActive {
+			continue
+		}
+		out = append(out, edgeDTO{
+			FromStationID: e.FromStationID.String(),
+			ToStationID:   e.ToStationID.String(),
+			DistanceKM:    e.DistanceKM,
+		})
+	}
+	return out
 }
 
 func (g *MatchingGateway) Match(ctx context.Context, orders []*entity.Order,
-	wagons []*entity.Wagon) ([]*entity.AssignmentResult, error) {
+	wagons []*entity.Wagon, stations []*entity.Station, edges []*entity.Edge) ([]*entity.AssignmentResult, error) {
 
-	body, err := json.Marshal(matchRequest{Orders: orders, Wagons: wagons})
+	reqBody := matchRequest{
+		Orders:   toOrderDTOs(orders),
+		Wagons:   toWagonDTOs(wagons),
+		Stations: toStationDTOs(stations),
+		Edges:    toEdgeDTOs(edges),
+	}
+
+	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.URL+"/match", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.URL+matchEndpoint,
+		bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -78,6 +203,14 @@ func (g *MatchingGateway) Match(ctx context.Context, orders []*entity.Order,
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
+	for _, u := range result.UnmatchedOrders {
+		log.Printf("matching: unmatched order %s: %s", u.OrderID, u.Reason)
+	}
+
+	m := result.Metrics
+	log.Printf("matching metrics: matched=%d unmatched=%d match_rate=%.2f total_empty_km=%.1f total_cost=%.1f cost_saved=%.1f",
+		m.OrdersMatched, m.OrdersUnmatched, m.MatchRate, m.TotalEmptyKM, m.TotalCost, m.CostSaved)
+
 	out := make([]*entity.AssignmentResult, 0, len(result.Assignments))
 	for _, a := range result.Assignments {
 		orderID, err := uuid.Parse(a.OrderID)
@@ -102,9 +235,9 @@ func (g *MatchingGateway) Match(ctx context.Context, orders []*entity.Order,
 			Assignment: &entity.Assignment{
 				OrderID:          orderID,
 				WagonID:          wagonID,
-				EmptyRunKM:       a.EmptyRunKM,
-				CostEmptyRun:     a.CostEmptyRun,
-				EstimatedArrival: a.EstimatedArrival,
+				EmptyRunKM:       int(math.Round(a.EmptyRunKM)),
+				CostEmptyRun:     int(math.Round(a.CostEmptyRun)),
+				EstimatedArrival: time.Now().Add(time.Duration(a.EstimatedHours * float64(time.Hour))),
 			},
 			Route: route,
 		})
