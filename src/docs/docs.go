@@ -62,7 +62,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Fleet"
+                    "Wagon"
                 ],
                 "summary": "Fleet Status",
                 "responses": {
@@ -172,6 +172,35 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/wagons": {
+            "get": {
+                "description": "Retrieves all wagons and their current status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wagon"
+                ],
+                "summary": "List Wagons",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.listWagonsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve wagons",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -219,6 +248,17 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/controller.stationResponse"
+                    }
+                }
+            }
+        },
+        "controller.listWagonsResponse": {
+            "type": "object",
+            "properties": {
+                "wagons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/entity.Wagon"
                     }
                 }
             }
@@ -287,6 +327,44 @@ const docTemplate = `{
                 "Cancelled"
             ]
         },
+        "entity.Wagon": {
+            "type": "object",
+            "properties": {
+                "currentStationId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lastUnloadTime": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/entity.WagonStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/entity.WagonType"
+                }
+            }
+        },
+        "entity.WagonStatus": {
+            "type": "string",
+            "enum": [
+                "loaded",
+                "empty_moving",
+                "idle",
+                "maintenance"
+            ],
+            "x-enum-varnames": [
+                "Loaded",
+                "EmptyMoving",
+                "Idle",
+                "Maintenance"
+            ]
+        },
         "entity.WagonType": {
             "type": "string",
             "enum": [
@@ -345,7 +423,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0.5",
+	Version:          "1.0.6",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},

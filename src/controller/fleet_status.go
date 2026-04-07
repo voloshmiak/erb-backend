@@ -26,7 +26,7 @@ type fleetStatusResponse struct {
 // ServeHTTP godoc
 // @Summary     Fleet Status
 // @Description Returns wagon counts by type and status, plus average empty-run km for today
-// @Tags        Fleet
+// @Tags        Wagon
 // @Produce     json
 // @Success     200  {object}  fleetStatusResponse
 // @Failure     500  {object}  string  "Failed to retrieve fleet status"

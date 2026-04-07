@@ -22,7 +22,7 @@ import (
 )
 
 // @title           Empty Runner Buster API
-// @version         1.0.5
+// @version         1.0.6
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
@@ -73,6 +73,7 @@ func run() error {
 
 	listStationsUsecase := usecase.NewListStationsUseCase(stationRepository)
 	fleetStatusUsecase := usecase.NewFleetStatusUseCase(wagonRepository)
+	listWagonsUsecase := usecase.NewListWagonsUseCase(wagonRepository)
 	createOrderUsecase := usecase.NewCreateOrderUseCase(orderRepository, stationRepository,
 		assignmentRepository, routeStepRepository, wagonRepository, b, matchingGateway)
 	advanceRoutesUsecase := usecase.NewAdvanceRoutesUseCase(routeStepRepository,
@@ -93,11 +94,13 @@ func run() error {
 	listStationsController := controller.NewListStationsController(listStationsUsecase)
 	fleetStatusController := controller.NewFleetStatusController(fleetStatusUsecase)
 	createOrderController := controller.NewCreateOrderController(createOrderUsecase)
+	listWagonsController := controller.NewListWagonsController(listWagonsUsecase)
 
 	router.Handle("GET /api/health", healthController)
 	router.Handle("GET /api/docs", docsController)
 	router.Handle("GET /api/stations", listStationsController)
 	router.Handle("GET /api/fleet/status", fleetStatusController)
+	router.Handle("GET /api/wagons", listWagonsController)
 	router.Handle("POST /api/orders", createOrderController)
 	router.Handle("GET /api/events/stream", eventsStreamController)
 	router.Handle("/swagger/", httpSwagger.WrapHandler)

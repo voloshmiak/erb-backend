@@ -128,3 +128,32 @@ func (r *WagonRepository) ListByStatus(ctx context.Context,
 	}
 	return wagons, rows.Err()
 }
+
+func (r *WagonRepository) List(ctx context.Context) ([]*entity.Wagon, error) {
+	rows, err := r.conn.QueryContext(ctx, `
+		SELECT id::text, wagon_number, wagon_type, current_station_id::text, status
+		FROM wagons
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err = rows.Close(); err != nil {
+			log.Println("failed to close rows:", err)
+		}
+	}()
+
+	var wagons []*entity.Wagon
+	for rows.Next() {
+		var w entity.Wagon
+		var stationIDStr string
+		if err = rows.Scan(&w.ID, &w.Number, &w.Type, &stationIDStr, &w.Status); err != nil {
+			return nil, err
+		}
+		if w.CurrentStationID, err = uuid.Parse(stationIDStr); err != nil {
+			return nil, err
+		}
+		wagons = append(wagons, &w)
+	}
+	return wagons, rows.Err()
+}

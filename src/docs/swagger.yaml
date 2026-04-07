@@ -31,6 +31,13 @@ definitions:
           $ref: '#/definitions/controller.stationResponse'
         type: array
     type: object
+  controller.listWagonsResponse:
+    properties:
+      wagons:
+        items:
+          $ref: '#/definitions/entity.Wagon'
+        type: array
+    type: object
   controller.stationResponse:
     properties:
       lat:
@@ -75,6 +82,33 @@ definitions:
     - Matched
     - Fulfilled
     - Cancelled
+  entity.Wagon:
+    properties:
+      currentStationId:
+        type: string
+      id:
+        type: string
+      lastUnloadTime:
+        type: string
+      number:
+        type: string
+      status:
+        $ref: '#/definitions/entity.WagonStatus'
+      type:
+        $ref: '#/definitions/entity.WagonType'
+    type: object
+  entity.WagonStatus:
+    enum:
+    - loaded
+    - empty_moving
+    - idle
+    - maintenance
+    type: string
+    x-enum-varnames:
+    - Loaded
+    - EmptyMoving
+    - Idle
+    - Maintenance
   entity.WagonType:
     enum:
     - gondola
@@ -115,7 +149,7 @@ info:
   contact: {}
   description: This is the API documentation for the Empty Runner Buster application
   title: Empty Runner Buster API
-  version: 1.0.5
+  version: 1.0.6
 paths:
   /docs:
     get:
@@ -160,7 +194,7 @@ paths:
             type: string
       summary: Fleet Status
       tags:
-      - Fleet
+      - Wagon
   /health:
     get:
       description: Returns 200 OK when the service is healthy
@@ -221,4 +255,23 @@ paths:
       summary: List Stations
       tags:
       - Station
+  /wagons:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all wagons and their current status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.listWagonsResponse'
+        "500":
+          description: Failed to retrieve wagons
+          schema:
+            type: string
+      summary: List Wagons
+      tags:
+      - Wagon
 swagger: "2.0"

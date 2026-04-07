@@ -39,6 +39,7 @@ type Broadcaster interface {
 }
 
 type WagonRepository interface {
+	List(ctx context.Context) ([]*entity.Wagon, error)
 	ListStatusCounts(ctx context.Context) ([]entity.WagonStatusCount, error)
 	ListByStatus(ctx context.Context, status entity.WagonStatus) ([]*entity.Wagon, error)
 	FindLoadedReadyToUnload(ctx context.Context, olderThan time.Duration) ([]*entity.LoadedWagon, error)
