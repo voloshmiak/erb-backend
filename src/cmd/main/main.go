@@ -18,11 +18,12 @@ import (
 	_ "erb-backend/src/docs"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/rs/cors"
 	"github.com/swaggo/http-swagger"
 )
 
 // @title           Empty Runner Buster API
-// @version         1.1.0
+// @version         1.1.1
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
@@ -108,9 +109,17 @@ func run() error {
 	router.Handle("GET /api/events/stream", eventsStreamController)
 	router.Handle("/swagger/", httpSwagger.WrapHandler)
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+		Debug:            true,
+	})
+
 	server := &http.Server{
 		Addr:    ":" + cfg.Port,
-		Handler: router,
+		Handler: c.Handler(router),
 	}
 
 	log.Println("Starting server on port", cfg.Port)
