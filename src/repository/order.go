@@ -52,20 +52,34 @@ func (r *OrderRepository) FindPending(ctx context.Context) ([]*entity.Order, err
 	return orders, rows.Err()
 }
 
-func (r *OrderRepository) UpdateIfFulfilled(ctx context.Context, orderID uuid.UUID) (bool, error) {
-	res, err := r.conn.ExecContext(ctx, `
+func (r *OrderRepository) UpdateIfFulfilled(ctx context.Context, orderID uuid.UUID) (*entity.Order, error) {
+	var idStr, stationToIDStr string
+	o := &entity.Order{}
+	err := r.conn.QueryRowContext(ctx, `
 		UPDATE orders SET status = $2
 		WHERE id = $1
 		AND NOT EXISTS (
 			SELECT 1 FROM assignments
 			WHERE order_id = $1 AND status != $3
 		)
-	`, orderID, entity.Fulfilled, entity.AssignmentDelivered)
-	if err != nil {
-		return false, err
+		RETURNING id::text, client_name, station_to_id::text, wagon_type,
+		          quantity, desired_date, status, created_at
+	`, orderID, entity.Fulfilled, entity.AssignmentDelivered).
+		Scan(&idStr, &o.ClientName, &stationToIDStr, &o.WagonType,
+			&o.Quantity, &o.DesiredDate, &o.Status, &o.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
 	}
-	n, err := res.RowsAffected()
-	return n > 0, err
+	if err != nil {
+		return nil, err
+	}
+	if o.ID, err = uuid.Parse(idStr); err != nil {
+		return nil, err
+	}
+	if o.StationToID, err = uuid.Parse(stationToIDStr); err != nil {
+		return nil, err
+	}
+	return o, nil
 }
 
 func (r *OrderRepository) UpdateStatus(ctx context.Context,

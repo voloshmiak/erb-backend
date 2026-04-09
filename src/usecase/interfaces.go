@@ -29,7 +29,7 @@ type OrderRepository interface {
 	List(ctx context.Context) ([]*entity.Order, error)
 	Create(ctx context.Context, order *entity.Order) error
 	FindPending(ctx context.Context) ([]*entity.Order, error)
-	UpdateIfFulfilled(ctx context.Context, orderID uuid.UUID) (bool, error)
+	UpdateIfFulfilled(ctx context.Context, orderID uuid.UUID) (*entity.Order, error)
 	UpdateStatus(ctx context.Context, orderID uuid.UUID, status entity.OrderStatus) error
 }
 

@@ -100,12 +100,12 @@ func (uc *AdvanceRoutesUseCase) completeAssignment(ctx context.Context,
 	if err := uc.assignmentRepository.UpdateStatus(ctx, step.AssignmentID, entity.AssignmentDelivered); err != nil {
 		return errors.Wrap(err, "advance_routes: failed to update assignment status "+step.AssignmentID.String())
 	}
-	fulfilled, err := uc.orderRepository.UpdateIfFulfilled(ctx, step.OrderID)
+	order, err := uc.orderRepository.UpdateIfFulfilled(ctx, step.OrderID)
 	if err != nil {
 		return errors.Wrap(err, "advance_routes: failed to update order "+step.OrderID.String())
 	}
-	if fulfilled {
-		uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderFulfilled, step.OrderID))
+	if order != nil {
+		uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderFulfilled, order))
 	}
 	uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.WagonArrived, entity.WagonArrivedPayload{
 		WagonID:      step.WagonID,
