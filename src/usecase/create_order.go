@@ -144,25 +144,30 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 		r.Assignment.ID = uuid.New()
 		r.Assignment.Status = entity.AssignmentPlanned
 
+		// Compute step durations first to set ETA before inserting
+		stepDurations := make([]float64, len(r.Route))
 		var totalDurationHours float64
-
 		for i, stationID := range r.Route {
-			durationHours := computeStepDuration(i, stationID, r.Route, edgeDistMap, stationTypeMap)
-			totalDurationHours += durationHours
-
-			if err = u.routeStepRepository.CreateForAssignment(ctx, r.Assignment.ID,
-				i, stationID, durationHours); err != nil {
-				log.Printf("match: failed to create route step %d for assignment %s: %v",
-					i, r.Assignment.ID, err)
-			}
+			d := computeStepDuration(i, stationID, r.Route, edgeDistMap, stationTypeMap)
+			stepDurations[i] = d
+			totalDurationHours += d
 		}
 
 		r.Assignment.EstimatedArrival = u.simClock.ToDisplayTime(
 			u.simClock.Now() + int64(math.Ceil(totalDurationHours)))
 
+		// Assignment must exist before route steps (FK constraint)
 		if err = u.assignmentRepository.Create(ctx, r.Assignment); err != nil {
 			log.Printf("match: failed to create assignment for order %s: %v", r.Assignment.OrderID, err)
 			continue
+		}
+
+		for i, stationID := range r.Route {
+			if err = u.routeStepRepository.CreateForAssignment(ctx, r.Assignment.ID,
+				i, stationID, stepDurations[i]); err != nil {
+				log.Printf("match: failed to create route step %d for assignment %s: %v",
+					i, r.Assignment.ID, err)
+			}
 		}
 
 		if err = u.orderRepository.UpdateStatus(ctx, r.Assignment.OrderID, entity.Matched); err != nil {
