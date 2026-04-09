@@ -17,6 +17,9 @@ type Config struct {
 		Host         string `env:"DB_HOST,required"`
 	}
 	MatchingServiceURL string `env:"MATCHING_SERVICE_URL,required"`
+	Simulation         struct {
+		SpeedMultiplier int `env:"SIM_SPEED" envDefault:"1"`
+	}
 }
 
 func New() (*Config, error) {

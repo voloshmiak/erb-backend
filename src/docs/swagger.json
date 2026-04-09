@@ -4,7 +4,7 @@
         "description": "This is the API documentation for the Empty Runner Buster application",
         "title": "Empty Runner Buster API",
         "contact": {},
-        "version": "1.1.5"
+        "version": "1.2.0"
     },
     "basePath": "/api",
     "paths": {
@@ -164,6 +164,26 @@
                 }
             }
         },
+        "/simulation": {
+            "get": {
+                "description": "Returns current simulation clock state",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Simulation"
+                ],
+                "summary": "Simulation Status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.simStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/stations": {
             "get": {
                 "description": "Retrieves all stations and active edges forming the railway graph",
@@ -300,6 +320,20 @@
                 }
             }
         },
+        "controller.simStatusResponse": {
+            "type": "object",
+            "properties": {
+                "currentHour": {
+                    "type": "integer"
+                },
+                "displayTime": {
+                    "type": "string"
+                },
+                "speed": {
+                    "type": "integer"
+                }
+            }
+        },
         "controller.stationResponse": {
             "type": "object",
             "properties": {
@@ -378,6 +412,9 @@
                 },
                 "number": {
                     "type": "string"
+                },
+                "stateUntilHour": {
+                    "type": "integer"
                 },
                 "status": {
                     "$ref": "#/definitions/entity.WagonStatus"

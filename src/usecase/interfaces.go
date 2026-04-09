@@ -4,7 +4,6 @@ import (
 	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -14,9 +13,9 @@ type RouteStepRepository interface {
 	CompleteRouteStep(ctx context.Context, id uuid.UUID) error
 	FindNextRouteStep(ctx context.Context, assignmentID uuid.UUID,
 		stepIndex int) (*entity.RouteStep, error)
-	ActivateRouteStep(ctx context.Context, id uuid.UUID) error
+	ActivateRouteStep(ctx context.Context, id uuid.UUID, simHour int64) error
 	CreateForAssignment(ctx context.Context, assignmentID uuid.UUID,
-		stepIndex int, stationID uuid.UUID) error
+		stepIndex int, stationID uuid.UUID, durationHours float64) error
 }
 
 type AssignmentRepository interface {
@@ -43,9 +42,9 @@ type WagonRepository interface {
 	List(ctx context.Context) ([]*entity.Wagon, error)
 	ListStatusCounts(ctx context.Context) ([]entity.WagonStatusCount, error)
 	ListByStatus(ctx context.Context, status entity.WagonStatus) ([]*entity.Wagon, error)
-	FindLoadedReadyToUnload(ctx context.Context, olderThan time.Duration) ([]*entity.LoadedWagon, error)
+	FindLoadedReadyToUnload(ctx context.Context, currentHour int64) ([]*entity.LoadedWagon, error)
 	UpdateStation(ctx context.Context, wagonID, stationID uuid.UUID) error
-	UpdateStatus(ctx context.Context, wagonID uuid.UUID, status entity.WagonStatus) error
+	UpdateStatus(ctx context.Context, wagonID uuid.UUID, status entity.WagonStatus, stateUntilHour *int64) error
 }
 
 type StationRepository interface {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
-	"time"
 
 	"github.com/pkg/errors"
 )
@@ -12,26 +11,23 @@ import (
 type UnloadWagonsUseCase struct {
 	wagons      WagonRepository
 	broadcaster Broadcaster
-	unloadAfter time.Duration
 }
 
-func NewUnloadWagonsUseCase(wagons WagonRepository, b Broadcaster,
-	unloadAfter time.Duration) *UnloadWagonsUseCase {
+func NewUnloadWagonsUseCase(wagons WagonRepository, b Broadcaster) *UnloadWagonsUseCase {
 	return &UnloadWagonsUseCase{
 		wagons:      wagons,
 		broadcaster: b,
-		unloadAfter: unloadAfter,
 	}
 }
 
-func (uc *UnloadWagonsUseCase) Execute(ctx context.Context) error {
-	wagons, err := uc.wagons.FindLoadedReadyToUnload(ctx, uc.unloadAfter)
+func (uc *UnloadWagonsUseCase) Execute(ctx context.Context, simHour int64) error {
+	wagons, err := uc.wagons.FindLoadedReadyToUnload(ctx, simHour)
 	if err != nil {
 		return errors.Wrap(err, "failed to get loaded wagonRepository")
 	}
 
 	for _, w := range wagons {
-		if err = uc.wagons.UpdateStatus(ctx, w.ID, entity.Idle); err != nil {
+		if err = uc.wagons.UpdateStatus(ctx, w.ID, entity.Idle, nil); err != nil {
 			return errors.Wrap(err, "failed to update wagon status "+w.ID.String())
 		}
 		uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.WagonUnloaded, w))

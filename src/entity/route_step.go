@@ -15,22 +15,25 @@ const (
 )
 
 type ActiveRouteStep struct {
-	ID           uuid.UUID
-	AssignmentID uuid.UUID
-	OrderID      uuid.UUID
-	WagonID      uuid.UUID
-	WagonNumber  string
-	StepIndex    int
-	TotalSteps   int
+	ID              uuid.UUID
+	AssignmentID    uuid.UUID
+	OrderID         uuid.UUID
+	WagonID         uuid.UUID
+	WagonNumber     string
+	StepIndex       int
+	TotalSteps      int
+	DurationHours   float64
+	ActivatedAtHour int64
 }
 
 type RouteStep struct {
-	ID          uuid.UUID
-	StationID   uuid.UUID
-	StepIndex   int
-	StationName string
-	Lat         float64
-	Lng         float64
+	ID            uuid.UUID
+	StationID     uuid.UUID
+	StepIndex     int
+	StationName   string
+	Lat           float64
+	Lng           float64
+	DurationHours float64
 }
 
 type WagonMovedPayload struct {

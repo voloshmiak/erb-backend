@@ -27,7 +27,9 @@ func (r *RouteStepRepository) FindActiveRouteSteps(ctx context.Context) ([]*enti
 			a.wagon_id::text,
 			w.wagon_number,
 			rs.step_index,
-			(SELECT COUNT(*) FROM route_steps WHERE assignment_id = rs.assignment_id) AS total_steps
+			(SELECT COUNT(*) FROM route_steps WHERE assignment_id = rs.assignment_id) AS total_steps,
+			rs.duration_hours,
+			COALESCE(rs.activated_at_hour, 0)
 		FROM route_steps rs
 		JOIN assignments a ON a.id = rs.assignment_id AND a.status != $1
 		JOIN wagons w ON w.id = a.wagon_id
@@ -64,10 +66,11 @@ func (r *RouteStepRepository) CompleteRouteStep(ctx context.Context, id uuid.UUI
 func (r *RouteStepRepository) FindNextRouteStep(ctx context.Context, assignmentID uuid.UUID,
 	stepIndex int) (*entity.RouteStep, error) {
 	var (
-		id          string
-		stationID   string
-		stationName string
-		lat, lng    float64
+		id            string
+		stationID     string
+		stationName   string
+		lat, lng      float64
+		durationHours float64
 	)
 	err := r.conn.QueryRowContext(ctx, `
 		SELECT
@@ -75,11 +78,12 @@ func (r *RouteStepRepository) FindNextRouteStep(ctx context.Context, assignmentI
 			rs.station_id::text,
 			s.name,
 			ST_Y(s.location::geometry),
-			ST_X(s.location::geometry)
+			ST_X(s.location::geometry),
+			rs.duration_hours
 		FROM route_steps rs
 		JOIN stations s ON s.id = rs.station_id
 		WHERE rs.assignment_id = $1 AND rs.step_index = $2
-	`, assignmentID, stepIndex).Scan(&id, &stationID, &stationName, &lat, &lng)
+	`, assignmentID, stepIndex).Scan(&id, &stationID, &stationName, &lat, &lng, &durationHours)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -98,49 +102,58 @@ func (r *RouteStepRepository) FindNextRouteStep(ctx context.Context, assignmentI
 	}
 
 	return &entity.RouteStep{
-		ID:          parsedID,
-		StationID:   parsedStationID,
-		StepIndex:   stepIndex,
-		StationName: stationName,
-		Lat:         lat,
-		Lng:         lng,
+		ID:            parsedID,
+		StationID:     parsedStationID,
+		StepIndex:     stepIndex,
+		StationName:   stationName,
+		Lat:           lat,
+		Lng:           lng,
+		DurationHours: durationHours,
 	}, nil
 }
 
 func (r *RouteStepRepository) CreateForAssignment(ctx context.Context, assignmentID uuid.UUID,
-	stepIndex int, stationID uuid.UUID) error {
+	stepIndex int, stationID uuid.UUID, durationHours float64) error {
 	_, err := r.conn.ExecContext(ctx, `
-		INSERT INTO route_steps (id, assignment_id, station_id, step_index, status)
-		VALUES ($1, $2, $3, $4, $5)
-	`, uuid.New(), assignmentID, stationID, stepIndex, entity.RouteStepPending)
+		INSERT INTO route_steps (id, assignment_id, station_id, step_index, status, duration_hours)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, uuid.New(), assignmentID, stationID, stepIndex, entity.RouteStepPending, durationHours)
 	return err
 }
 
-func (r *RouteStepRepository) ActivateRouteStep(ctx context.Context, id uuid.UUID) error {
+func (r *RouteStepRepository) ActivateRouteStep(ctx context.Context, id uuid.UUID, simHour int64) error {
 	_, err := r.conn.ExecContext(ctx,
-		"UPDATE route_steps SET status = $2 WHERE id = $1",
-		id, entity.RouteStepCurrent,
+		"UPDATE route_steps SET status = $2, activated_at_hour = $3 WHERE id = $1",
+		id, entity.RouteStepCurrent, simHour,
 	)
 	return err
 }
 
 func scanActiveRouteStep(rows *sql.Rows) (*entity.ActiveRouteStep, error) {
 	var (
-		id           string
-		assignmentID string
-		orderID      string
-		wagonID      string
-		wagonNumber  string
-		stepIndex    int
-		totalSteps   int
+		id              string
+		assignmentID    string
+		orderID         string
+		wagonID         string
+		wagonNumber     string
+		stepIndex       int
+		totalSteps      int
+		durationHours   float64
+		activatedAtHour int64
 	)
 
 	if err := rows.Scan(&id, &assignmentID, &orderID, &wagonID,
-		&wagonNumber, &stepIndex, &totalSteps); err != nil {
+		&wagonNumber, &stepIndex, &totalSteps, &durationHours, &activatedAtHour); err != nil {
 		return nil, err
 	}
 
-	s := &entity.ActiveRouteStep{StepIndex: stepIndex, TotalSteps: totalSteps, WagonNumber: wagonNumber}
+	s := &entity.ActiveRouteStep{
+		StepIndex:       stepIndex,
+		TotalSteps:      totalSteps,
+		WagonNumber:     wagonNumber,
+		DurationHours:   durationHours,
+		ActivatedAtHour: activatedAtHour,
+	}
 
 	for _, pair := range []struct {
 		dst *uuid.UUID

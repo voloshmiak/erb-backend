@@ -7,12 +7,12 @@ import (
 	"erb-backend/src/controller"
 	"erb-backend/src/gateway"
 	"erb-backend/src/repository"
+	"erb-backend/src/simclock"
 	"erb-backend/src/ticker"
 	"erb-backend/src/usecase"
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"erb-backend/src/broadcaster"
 	_ "erb-backend/src/docs"
@@ -23,7 +23,7 @@ import (
 )
 
 // @title           Empty Runner Buster API
-// @version         1.1.5
+// @version         1.2.0
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
@@ -68,6 +68,16 @@ func run() error {
 	orderRepository := repository.NewOrderRepository(conn)
 	assignmentRepository := repository.NewAssignmentRepository(conn)
 	routeStepRepository := repository.NewRouteStepRepository(conn)
+	simStateRepository := repository.NewSimStateRepository(conn)
+
+	// Load simulation state
+	initialHour, startedAt, err := simStateRepository.Load(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to load sim state: %w", err)
+	}
+
+	clock := simclock.New(initialHour, startedAt, cfg.Simulation.SpeedMultiplier)
+	log.Printf("simulation: starting at hour %d, speed %dx", initialHour, cfg.Simulation.SpeedMultiplier)
 
 	b := broadcaster.New()
 	matchingGateway := gateway.NewMatchingGateway(cfg.MatchingServiceURL)
@@ -76,18 +86,18 @@ func run() error {
 	fleetStatusUsecase := usecase.NewFleetStatusUseCase(wagonRepository)
 	listWagonsUsecase := usecase.NewListWagonsUseCase(wagonRepository)
 	createOrderUsecase := usecase.NewCreateOrderUseCase(orderRepository, stationRepository,
-		assignmentRepository, routeStepRepository, wagonRepository, b, matchingGateway)
+		assignmentRepository, routeStepRepository, wagonRepository, b, matchingGateway, clock)
 	listOrdersUsecase := usecase.NewListOrdersUseCase(orderRepository)
 	advanceRoutesUsecase := usecase.NewAdvanceRoutesUseCase(routeStepRepository,
-		wagonRepository, assignmentRepository, orderRepository, b)
+		wagonRepository, assignmentRepository, orderRepository, b, clock)
 	dispatchPlannedUsecase := usecase.NewDispatchPlannedUseCase(assignmentRepository,
 		routeStepRepository, wagonRepository, b)
-	unloadWagonsUsecase := usecase.NewUnloadWagonsUseCase(wagonRepository, b, 30*time.Second)
+	unloadWagonsUsecase := usecase.NewUnloadWagonsUseCase(wagonRepository, b)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	t := ticker.NewTicker(10*time.Second, dispatchPlannedUsecase, advanceRoutesUsecase, unloadWagonsUsecase)
+	t := ticker.NewTicker(clock, simStateRepository, dispatchPlannedUsecase, advanceRoutesUsecase, unloadWagonsUsecase, b)
 	go t.Run(ctx)
 
 	healthController := controller.NewHealthController()
@@ -98,6 +108,7 @@ func run() error {
 	createOrderController := controller.NewCreateOrderController(createOrderUsecase)
 	listOrdersController := controller.NewListOrdersController(listOrdersUsecase)
 	listWagonsController := controller.NewListWagonsController(listWagonsUsecase)
+	simStatusController := controller.NewSimStatusController(clock)
 
 	router.Handle("GET /api/health", healthController)
 	router.Handle("GET /api/docs", docsController)
@@ -107,6 +118,7 @@ func run() error {
 	router.Handle("GET /api/orders", listOrdersController)
 	router.Handle("POST /api/orders", createOrderController)
 	router.Handle("GET /api/events/stream", eventsStreamController)
+	router.Handle("GET /api/simulation", simStatusController)
 	router.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	c := cors.New(cors.Options{

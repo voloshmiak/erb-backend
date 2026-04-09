@@ -4,11 +4,14 @@ import (
 	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
+	"erb-backend/src/simclock"
 	"log"
-	"time"
+	"math"
 
 	"github.com/pkg/errors"
 )
+
+const unloadDurationHours = 24
 
 type AdvanceRoutesUseCase struct {
 	routeStepRepository  RouteStepRepository
@@ -16,6 +19,7 @@ type AdvanceRoutesUseCase struct {
 	assignmentRepository AssignmentRepository
 	orderRepository      OrderRepository
 	broadcaster          Broadcaster
+	simClock             *simclock.SimClock
 }
 
 func NewAdvanceRoutesUseCase(
@@ -24,6 +28,7 @@ func NewAdvanceRoutesUseCase(
 	assignmentRepository AssignmentRepository,
 	orderRepository OrderRepository,
 	b Broadcaster,
+	clock *simclock.SimClock,
 ) *AdvanceRoutesUseCase {
 	return &AdvanceRoutesUseCase{
 		routeStepRepository:  routeStepRepository,
@@ -31,19 +36,23 @@ func NewAdvanceRoutesUseCase(
 		assignmentRepository: assignmentRepository,
 		orderRepository:      orderRepository,
 		broadcaster:          b,
+		simClock:             clock,
 	}
 }
 
-func (uc *AdvanceRoutesUseCase) Execute(ctx context.Context) error {
+func (uc *AdvanceRoutesUseCase) Execute(ctx context.Context, simHour int64) error {
 	activeSteps, err := uc.routeStepRepository.FindActiveRouteSteps(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get active steps")
 	}
 
-	now := time.Now()
-
 	for _, step := range activeSteps {
-		if err = uc.processStep(ctx, step, now); err != nil {
+		readyAtHour := step.ActivatedAtHour + int64(math.Ceil(step.DurationHours))
+		if readyAtHour > simHour {
+			continue
+		}
+
+		if err = uc.processStep(ctx, step, simHour); err != nil {
 			log.Printf("advance_routes: failed to process step %s: %v", step.ID, err)
 		}
 	}
@@ -52,7 +61,7 @@ func (uc *AdvanceRoutesUseCase) Execute(ctx context.Context) error {
 }
 
 func (uc *AdvanceRoutesUseCase) processStep(ctx context.Context,
-	step *entity.ActiveRouteStep, now time.Time) error {
+	step *entity.ActiveRouteStep, simHour int64) error {
 	nextStep, err := uc.routeStepRepository.FindNextRouteStep(ctx, step.AssignmentID, step.StepIndex+1)
 	if err != nil {
 		return errors.Wrap(err, "advance_routes: failed to get next step for assignment "+
@@ -64,14 +73,14 @@ func (uc *AdvanceRoutesUseCase) processStep(ctx context.Context,
 	}
 
 	if nextStep != nil {
-		return uc.advanceToNextStep(ctx, step, nextStep, now)
+		return uc.advanceToNextStep(ctx, step, nextStep, simHour)
 	}
-	return uc.completeAssignment(ctx, step)
+	return uc.completeAssignment(ctx, step, simHour)
 }
 
 func (uc *AdvanceRoutesUseCase) advanceToNextStep(ctx context.Context, step *entity.ActiveRouteStep,
-	nextStep *entity.RouteStep, now time.Time) error {
-	if err := uc.routeStepRepository.ActivateRouteStep(ctx, nextStep.ID); err != nil {
+	nextStep *entity.RouteStep, simHour int64) error {
+	if err := uc.routeStepRepository.ActivateRouteStep(ctx, nextStep.ID, simHour); err != nil {
 		return errors.Wrap(err, "advance_routes: failed to activate step "+nextStep.ID.String())
 	}
 	if err := uc.wagonRepository.UpdateStation(ctx, step.WagonID, nextStep.StationID); err != nil {
@@ -86,15 +95,16 @@ func (uc *AdvanceRoutesUseCase) advanceToNextStep(ctx context.Context, step *ent
 		Lng:         nextStep.Lng,
 		StepIndex:   nextStep.StepIndex,
 		TotalSteps:  step.TotalSteps,
-		ArrivedAt:   now,
+		ArrivedAt:   uc.simClock.ToDisplayTime(simHour),
 	}))
 
 	return nil
 }
 
 func (uc *AdvanceRoutesUseCase) completeAssignment(ctx context.Context,
-	step *entity.ActiveRouteStep) error {
-	if err := uc.wagonRepository.UpdateStatus(ctx, step.WagonID, entity.Loaded); err != nil {
+	step *entity.ActiveRouteStep, simHour int64) error {
+	unloadUntil := simHour + unloadDurationHours
+	if err := uc.wagonRepository.UpdateStatus(ctx, step.WagonID, entity.Loaded, &unloadUntil); err != nil {
 		return errors.Wrap(err, "advance_routes: failed to update wagon status "+step.WagonID.String())
 	}
 	if err := uc.assignmentRepository.UpdateStatus(ctx, step.AssignmentID, entity.AssignmentDelivered); err != nil {

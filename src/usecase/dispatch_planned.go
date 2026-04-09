@@ -29,7 +29,7 @@ func NewDispatchPlannedUseCase(
 	}
 }
 
-func (uc *DispatchPlannedUseCase) Execute(ctx context.Context) error {
+func (uc *DispatchPlannedUseCase) Execute(ctx context.Context, simHour int64) error {
 	a, err := uc.assignments.FindOldestPlanned(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get oldest planned")
@@ -41,10 +41,10 @@ func (uc *DispatchPlannedUseCase) Execute(ctx context.Context) error {
 	if err = uc.assignments.UpdateStatus(ctx, a.ID, entity.AssignmentInTransit); err != nil {
 		return errors.Wrap(err, "failed to update assignment status")
 	}
-	if err = uc.routeSteps.ActivateRouteStep(ctx, a.FirstStepID); err != nil {
+	if err = uc.routeSteps.ActivateRouteStep(ctx, a.FirstStepID, simHour); err != nil {
 		return errors.Wrap(err, "failed to activate first step")
 	}
-	if err = uc.wagons.UpdateStatus(ctx, a.WagonID, entity.EmptyMoving); err != nil {
+	if err = uc.wagons.UpdateStatus(ctx, a.WagonID, entity.EmptyMoving, nil); err != nil {
 		return errors.Wrap(err, "failed to update wagon status")
 	}
 

@@ -4,7 +4,9 @@ import (
 	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
+	"erb-backend/src/simclock"
 	"log"
+	"math"
 	"time"
 
 	"github.com/pkg/errors"
@@ -25,6 +27,7 @@ type CreateOrderUseCase struct {
 	wagonRepository      WagonRepository
 	broadcaster          Broadcaster
 	matchingGateway      MatchingGateway
+	simClock             *simclock.SimClock
 }
 
 func NewCreateOrderUseCase(
@@ -35,6 +38,7 @@ func NewCreateOrderUseCase(
 	wagonRepository WagonRepository,
 	broadcaster Broadcaster,
 	matchingGateway MatchingGateway,
+	clock *simclock.SimClock,
 ) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
 		orderRepository:      orderRepository,
@@ -44,6 +48,7 @@ func NewCreateOrderUseCase(
 		wagonRepository:      wagonRepository,
 		broadcaster:          broadcaster,
 		matchingGateway:      matchingGateway,
+		simClock:             clock,
 	}
 }
 
@@ -132,21 +137,32 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 		return errors.Wrap(err, "matching service failed")
 	}
 
+	edgeDistMap := buildEdgeDistanceMap(edges)
+	stationTypeMap := buildStationTypeMap(stations)
+
 	for _, r := range results {
 		r.Assignment.ID = uuid.New()
 		r.Assignment.Status = entity.AssignmentPlanned
 
-		if err = u.assignmentRepository.Create(ctx, r.Assignment); err != nil {
-			log.Printf("match: failed to create assignment for order %s: %v", r.Assignment.OrderID, err)
-			continue
-		}
+		var totalDurationHours float64
 
 		for i, stationID := range r.Route {
+			durationHours := computeStepDuration(i, stationID, r.Route, edgeDistMap, stationTypeMap)
+			totalDurationHours += durationHours
+
 			if err = u.routeStepRepository.CreateForAssignment(ctx, r.Assignment.ID,
-				i, stationID); err != nil {
+				i, stationID, durationHours); err != nil {
 				log.Printf("match: failed to create route step %d for assignment %s: %v",
 					i, r.Assignment.ID, err)
 			}
+		}
+
+		r.Assignment.EstimatedArrival = u.simClock.ToDisplayTime(
+			u.simClock.Now() + int64(math.Ceil(totalDurationHours)))
+
+		if err = u.assignmentRepository.Create(ctx, r.Assignment); err != nil {
+			log.Printf("match: failed to create assignment for order %s: %v", r.Assignment.OrderID, err)
+			continue
 		}
 
 		if err = u.orderRepository.UpdateStatus(ctx, r.Assignment.OrderID, entity.Matched); err != nil {
@@ -157,4 +173,50 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func computeStepDuration(index int, stationID uuid.UUID, route []uuid.UUID,
+	edgeDistMap map[[2]uuid.UUID]float64, stationTypeMap map[uuid.UUID]entity.Type) float64 {
+	if index == 0 {
+		return 0
+	}
+
+	var durationHours float64
+
+	prevStationID := route[index-1]
+	key := [2]uuid.UUID{prevStationID, stationID}
+	if dist, ok := edgeDistMap[key]; ok {
+		durationHours = dist / 40.0
+	} else {
+		log.Printf("match: no edge found between %s and %s, using 0 travel time",
+			prevStationID, stationID)
+	}
+
+	switch stationTypeMap[stationID] {
+	case entity.Sorting:
+		durationHours += 8.0
+	case entity.Border:
+		durationHours += 4.0
+	}
+
+	return durationHours
+}
+
+func buildEdgeDistanceMap(edges []*entity.Edge) map[[2]uuid.UUID]float64 {
+	m := make(map[[2]uuid.UUID]float64, len(edges))
+	for _, e := range edges {
+		if !e.IsActive {
+			continue
+		}
+		m[[2]uuid.UUID{e.FromStationID, e.ToStationID}] = e.DistanceKM
+	}
+	return m
+}
+
+func buildStationTypeMap(stations []*entity.Station) map[uuid.UUID]entity.Type {
+	m := make(map[uuid.UUID]entity.Type, len(stations))
+	for _, s := range stations {
+		m[s.ID] = s.Type
+	}
+	return m
 }

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"erb-backend/src/entity"
 	"log"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -27,27 +26,23 @@ func (r *WagonRepository) UpdateStation(ctx context.Context, wagonID, stationID 
 }
 
 func (r *WagonRepository) UpdateStatus(ctx context.Context,
-	wagonID uuid.UUID, status entity.WagonStatus) error {
+	wagonID uuid.UUID, status entity.WagonStatus, stateUntilHour *int64) error {
 	_, err := r.conn.ExecContext(ctx,
-		"UPDATE wagons SET status = $1 WHERE id = $2",
-		status, wagonID,
+		"UPDATE wagons SET status = $1, state_until_hour = $3 WHERE id = $2",
+		status, wagonID, stateUntilHour,
 	)
 	return err
 }
 
 func (r *WagonRepository) FindLoadedReadyToUnload(ctx context.Context,
-	olderThan time.Duration) ([]*entity.LoadedWagon, error) {
+	currentHour int64) ([]*entity.LoadedWagon, error) {
 	rows, err := r.conn.QueryContext(ctx, `
 		SELECT w.id::text, w.wagon_number
 		FROM wagons w
 		WHERE w.status = $1
-		AND (
-			SELECT MAX(rs.arrived_at)
-			FROM route_steps rs
-			JOIN assignments a ON a.id = rs.assignment_id
-			WHERE a.wagon_id = w.id AND rs.arrived_at IS NOT NULL
-		) < NOW() - ($2 * interval '1 second')
-	`, entity.Loaded, olderThan.Seconds())
+		AND w.state_until_hour IS NOT NULL
+		AND w.state_until_hour <= $2
+	`, entity.Loaded, currentHour)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +126,7 @@ func (r *WagonRepository) ListByStatus(ctx context.Context,
 
 func (r *WagonRepository) List(ctx context.Context) ([]*entity.Wagon, error) {
 	rows, err := r.conn.QueryContext(ctx, `
-		SELECT id::text, wagon_number, wagon_type, current_station_id::text, status
+		SELECT id::text, wagon_number, wagon_type, current_station_id::text, status, state_until_hour
 		FROM wagons
 	`)
 	if err != nil {
@@ -147,11 +142,15 @@ func (r *WagonRepository) List(ctx context.Context) ([]*entity.Wagon, error) {
 	for rows.Next() {
 		var w entity.Wagon
 		var stationIDStr string
-		if err = rows.Scan(&w.ID, &w.Number, &w.Type, &stationIDStr, &w.Status); err != nil {
+		var stateUntil sql.NullInt64
+		if err = rows.Scan(&w.ID, &w.Number, &w.Type, &stationIDStr, &w.Status, &stateUntil); err != nil {
 			return nil, err
 		}
 		if w.CurrentStationID, err = uuid.Parse(stationIDStr); err != nil {
 			return nil, err
+		}
+		if stateUntil.Valid {
+			w.StateUntilHour = &stateUntil.Int64
 		}
 		wagons = append(wagons, &w)
 	}

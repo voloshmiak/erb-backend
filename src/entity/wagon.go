@@ -30,6 +30,7 @@ type Wagon struct {
 	Status           WagonStatus `json:"status"`
 	CurrentStationID uuid.UUID   `json:"currentStationId"`
 	LastUnloadTime   time.Time   `json:"lastUnloadTime"`
+	StateUntilHour   *int64      `json:"stateUntilHour,omitempty"`
 }
 
 type WagonStatusCount struct {

@@ -171,6 +171,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/simulation": {
+            "get": {
+                "description": "Returns current simulation clock state",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Simulation"
+                ],
+                "summary": "Simulation Status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.simStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/stations": {
             "get": {
                 "description": "Retrieves all stations and active edges forming the railway graph",
@@ -307,6 +327,20 @@ const docTemplate = `{
                 }
             }
         },
+        "controller.simStatusResponse": {
+            "type": "object",
+            "properties": {
+                "currentHour": {
+                    "type": "integer"
+                },
+                "displayTime": {
+                    "type": "string"
+                },
+                "speed": {
+                    "type": "integer"
+                }
+            }
+        },
         "controller.stationResponse": {
             "type": "object",
             "properties": {
@@ -385,6 +419,9 @@ const docTemplate = `{
                 },
                 "number": {
                     "type": "string"
+                },
+                "stateUntilHour": {
+                    "type": "integer"
                 },
                 "status": {
                     "$ref": "#/definitions/entity.WagonStatus"
@@ -467,7 +504,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.1.5",
+	Version:          "1.2.0",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},

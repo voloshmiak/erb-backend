@@ -42,6 +42,7 @@ const (
 	WagonDispatched   EventType = "wagonDispatched"
 	OrderFulfilled    EventType = "orderFulfilled"
 	WagonUnloaded     EventType = "wagonUnloaded"
+	SimTick           EventType = "simTick"
 )
 
 type Event struct {
