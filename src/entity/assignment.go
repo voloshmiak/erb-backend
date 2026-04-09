@@ -15,18 +15,18 @@ const (
 )
 
 type Assignment struct {
-	ID               uuid.UUID
-	OrderID          uuid.UUID
-	WagonID          uuid.UUID
-	EmptyRunKM       int
-	CostEmptyRun     int
-	EstimatedArrival time.Time
-	Status           AssignmentStatus
+	ID               uuid.UUID        `json:"id"`
+	OrderID          uuid.UUID        `json:"orderId"`
+	WagonID          uuid.UUID        `json:"wagonId"`
+	EmptyRunKM       int              `json:"emptyRunKm"`
+	CostEmptyRun     int              `json:"costEmptyRun"`
+	EstimatedArrival time.Time        `json:"estimatedArrival"`
+	Status           AssignmentStatus `json:"status"`
 }
 
 type AssignmentResult struct {
-	Assignment *Assignment
-	Route      []uuid.UUID
+	Assignment *Assignment `json:"assignment"`
+	Route      []uuid.UUID `json:"route"`
 }
 
 type PlannedAssignment struct {

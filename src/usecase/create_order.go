@@ -153,7 +153,7 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 			log.Printf("match: failed to update order status %s: %v", r.Assignment.OrderID, err)
 		}
 
-		u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.AssignmentCreated, r.Assignment))
+		u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.AssignmentCreated, r))
 	}
 
 	return nil
