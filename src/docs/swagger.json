@@ -4,7 +4,7 @@
         "description": "This is the API documentation for the Empty Runner Buster application",
         "title": "Empty Runner Buster API",
         "contact": {},
-        "version": "1.1.4"
+        "version": "1.1.5"
     },
     "basePath": "/api",
     "paths": {
@@ -286,6 +286,12 @@
         "controller.listWagonsResponse": {
             "type": "object",
             "properties": {
+                "statusCounts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
                 "wagons": {
                     "type": "array",
                     "items": {

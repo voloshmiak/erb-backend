@@ -16,7 +16,8 @@ func NewListWagonsController(usecase *usecase.ListWagonsUseCase) *ListWagonsCont
 }
 
 type listWagonsResponse struct {
-	Wagons []*entity.Wagon `json:"wagons"`
+	Wagons       []*entity.Wagon            `json:"wagons"`
+	StatusCounts map[entity.WagonStatus]int `json:"statusCounts"`
 }
 
 // ServeHTTP godoc
@@ -29,7 +30,7 @@ type listWagonsResponse struct {
 // @Failure     500 {object} string "Failed to retrieve wagons"
 // @Router      /wagons [get]
 func (c *ListWagonsController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	stations, err := c.usecase.Execute(r.Context())
+	result, err := c.usecase.Execute(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -38,7 +39,8 @@ func (c *ListWagonsController) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 
 	response := listWagonsResponse{
-		Wagons: stations,
+		Wagons:       result.Wagons,
+		StatusCounts: result.StatusCounts,
 	}
 
 	err = json.NewEncoder(w).Encode(response)

@@ -293,6 +293,12 @@ const docTemplate = `{
         "controller.listWagonsResponse": {
             "type": "object",
             "properties": {
+                "statusCounts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
                 "wagons": {
                     "type": "array",
                     "items": {
@@ -461,7 +467,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.1.4",
+	Version:          "1.1.5",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},

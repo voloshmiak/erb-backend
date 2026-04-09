@@ -17,10 +17,29 @@ func NewListWagonsUseCase(repository WagonRepository) *ListWagonsUseCase {
 	}
 }
 
-func (u *ListWagonsUseCase) Execute(ctx context.Context) ([]*entity.Wagon, error) {
+type ListWagonsResult struct {
+	Wagons       []*entity.Wagon
+	StatusCounts map[entity.WagonStatus]int
+}
+
+func (u *ListWagonsUseCase) Execute(ctx context.Context) (*ListWagonsResult, error) {
 	wagons, err := u.repository.List(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list orders")
+		return nil, errors.Wrap(err, "failed to list wagons")
 	}
-	return wagons, nil
+
+	counts, err := u.repository.ListStatusCounts(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list status counts")
+	}
+
+	statusCounts := make(map[entity.WagonStatus]int)
+	for _, c := range counts {
+		statusCounts[c.Status] += c.Count
+	}
+
+	return &ListWagonsResult{
+		Wagons:       wagons,
+		StatusCounts: statusCounts,
+	}, nil
 }

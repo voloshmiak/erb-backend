@@ -40,6 +40,10 @@ definitions:
     type: object
   controller.listWagonsResponse:
     properties:
+      statusCounts:
+        additionalProperties:
+          type: integer
+        type: object
       wagons:
         items:
           $ref: '#/definitions/entity.Wagon'
@@ -156,7 +160,7 @@ info:
   contact: {}
   description: This is the API documentation for the Empty Runner Buster application
   title: Empty Runner Buster API
-  version: 1.1.4
+  version: 1.1.5
 paths:
   /docs:
     get:
