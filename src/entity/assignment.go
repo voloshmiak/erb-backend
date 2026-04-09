@@ -30,8 +30,8 @@ type AssignmentResult struct {
 }
 
 type PlannedAssignment struct {
-	ID          uuid.UUID
-	OrderID     uuid.UUID
-	WagonID     uuid.UUID
-	FirstStepID uuid.UUID
+	ID          uuid.UUID `json:"id"`
+	OrderID     uuid.UUID `json:"orderId"`
+	WagonID     uuid.UUID `json:"wagonId"`
+	FirstStepID uuid.UUID `json:"firstStepId"`
 }

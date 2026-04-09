@@ -4,6 +4,7 @@ import (
 	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
+	"log"
 	"time"
 
 	"github.com/pkg/errors"
@@ -42,9 +43,8 @@ func (uc *AdvanceRoutesUseCase) Execute(ctx context.Context) error {
 	now := time.Now()
 
 	for _, step := range activeSteps {
-		err = uc.processStep(ctx, step, now)
-		if err != nil {
-			return errors.Wrap(err, "failed to process step")
+		if err = uc.processStep(ctx, step, now); err != nil {
+			log.Printf("advance_routes: failed to process step %s: %v", step.ID, err)
 		}
 	}
 
@@ -53,14 +53,14 @@ func (uc *AdvanceRoutesUseCase) Execute(ctx context.Context) error {
 
 func (uc *AdvanceRoutesUseCase) processStep(ctx context.Context,
 	step *entity.ActiveRouteStep, now time.Time) error {
-	if err := uc.routeStepRepository.CompleteRouteStep(ctx, step.ID); err != nil {
-		return errors.Wrap(err, "advance_routes: failed to complete step "+step.ID.String())
-	}
-
 	nextStep, err := uc.routeStepRepository.FindNextRouteStep(ctx, step.AssignmentID, step.StepIndex+1)
 	if err != nil {
 		return errors.Wrap(err, "advance_routes: failed to get next step for assignment "+
 			step.AssignmentID.String())
+	}
+
+	if err := uc.routeStepRepository.CompleteRouteStep(ctx, step.ID); err != nil {
+		return errors.Wrap(err, "advance_routes: failed to complete step "+step.ID.String())
 	}
 
 	if nextStep != nil {

@@ -39,6 +39,6 @@ type WagonStatusCount struct {
 }
 
 type LoadedWagon struct {
-	ID          uuid.UUID
-	WagonNumber string
+	ID          uuid.UUID `json:"id"`
+	WagonNumber string    `json:"wagonNumber"`
 }
