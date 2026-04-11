@@ -58,12 +58,23 @@ type CreateOrderInput struct {
 	WagonType   entity.WagonType `json:"wagonType"`
 	Quantity    int              `json:"quantity"`
 	DesiredDate string           `json:"desiredDate"`
+	Type        entity.OrderType `json:"type"`
 }
 
 func (i *CreateOrderInput) validate() error {
-	if i.ClientName == "" {
-		return errors.Wrap(ErrInvalidInput, "client name is required")
+	if i.Type == "" {
+		i.Type = entity.External
 	}
+	if i.Type == entity.Internal {
+		if i.ClientName == "" {
+			i.ClientName = "Internal"
+		}
+	} else {
+		if i.ClientName == "" {
+			return errors.Wrap(ErrInvalidInput, "client name is required")
+		}
+	}
+
 	if i.StationToID.String() == "00000000-0000-0000-0000-000000000000" {
 		return errors.Wrap(ErrInvalidInput, "station ID is required")
 	}
@@ -96,19 +107,21 @@ func (u *CreateOrderUseCase) Execute(ctx context.Context, input CreateOrderInput
 	}
 
 	order := entity.NewOrder(input.ClientName, input.StationToID, input.WagonType,
-		input.Quantity, parsedDesiredDate)
+		input.Quantity, parsedDesiredDate, input.Type)
 
 	if err = u.orderRepository.Create(ctx, order); err != nil {
 		return nil, errors.Wrap(err, "failed to create order")
 	}
 
-	u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderCreated, order))
+	if order.Type == entity.External {
+		u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderCreated, order))
 
-	go func() {
-		if err = u.match(context.WithoutCancel(ctx)); err != nil {
-			log.Println("failed to match orderRepository after creation:", err)
-		}
-	}()
+		go func() {
+			if err = u.match(context.WithoutCancel(ctx)); err != nil {
+				log.Println("failed to match orderRepository after creation:", err)
+			}
+		}()
+	}
 
 	return order, nil
 }

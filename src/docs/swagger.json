@@ -556,6 +556,9 @@
                 "status": {
                     "$ref": "#/definitions/entity.OrderStatus"
                 },
+                "type": {
+                    "$ref": "#/definitions/entity.OrderType"
+                },
                 "wagonType": {
                     "$ref": "#/definitions/entity.WagonType"
                 }
@@ -574,6 +577,17 @@
                 "Matched",
                 "Fulfilled",
                 "Cancelled"
+            ]
+        },
+        "entity.OrderType": {
+            "type": "string",
+            "enum": [
+                "external",
+                "internal"
+            ],
+            "x-enum-varnames": [
+                "External",
+                "Internal"
             ]
         },
         "entity.Train": {
@@ -700,6 +714,9 @@
                 },
                 "stationToId": {
                     "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/entity.OrderType"
                 },
                 "wagonType": {
                     "$ref": "#/definitions/entity.WagonType"

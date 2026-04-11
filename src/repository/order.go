@@ -20,10 +20,10 @@ func NewOrderRepository(conn *sql.DB) *OrderRepository {
 func (r *OrderRepository) FindPending(ctx context.Context) ([]*entity.Order, error) {
 	rows, err := r.conn.QueryContext(ctx, `
 		SELECT id::text, client_name, station_to_id::text, wagon_type, 
-		       quantity, desired_date, status, created_at
+		       quantity, desired_date, status, type, created_at
 		FROM orders
-		WHERE status = $1
-	`, entity.Pending)
+		WHERE status = $1 AND type = $2
+	`, entity.Pending, entity.External)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (r *OrderRepository) FindPending(ctx context.Context) ([]*entity.Order, err
 		var idStr, stationToIDStr string
 		o := &entity.Order{}
 		if err = rows.Scan(&idStr, &o.ClientName, &stationToIDStr, &o.WagonType,
-			&o.Quantity, &o.DesiredDate, &o.Status, &o.CreatedAt); err != nil {
+			&o.Quantity, &o.DesiredDate, &o.Status, &o.Type, &o.CreatedAt); err != nil {
 			return nil, err
 		}
 		if o.ID, err = uuid.Parse(idStr); err != nil {
@@ -63,10 +63,10 @@ func (r *OrderRepository) UpdateIfFulfilled(ctx context.Context, orderID uuid.UU
 			WHERE order_id = $1 AND status != $3
 		)
 		RETURNING id::text, client_name, station_to_id::text, wagon_type,
-		          quantity, desired_date, status, created_at
+		          quantity, desired_date, status, type, created_at
 	`, orderID, entity.Fulfilled, entity.AssignmentDelivered).
 		Scan(&idStr, &o.ClientName, &stationToIDStr, &o.WagonType,
-			&o.Quantity, &o.DesiredDate, &o.Status, &o.CreatedAt)
+			&o.Quantity, &o.DesiredDate, &o.Status, &o.Type, &o.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -93,20 +93,21 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context,
 
 func (r *OrderRepository) Create(ctx context.Context, order *entity.Order) error {
 	_, err := r.conn.ExecContext(ctx, `
-		INSERT INTO orders (id, client_name, station_to_id, wagon_type, quantity, desired_date, status, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO orders (id, client_name, station_to_id, wagon_type, quantity, desired_date, status, type, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`, order.ID, order.ClientName, order.StationToID, order.WagonType,
-		order.Quantity, order.DesiredDate, order.Status, order.CreatedAt)
+		order.Quantity, order.DesiredDate, order.Status, order.Type, order.CreatedAt)
 	return err
 }
 
 func (r *OrderRepository) List(ctx context.Context) ([]*entity.Order, error) {
 	rows, err := r.conn.QueryContext(ctx, `
 		SELECT id::text, client_name, station_to_id::text, wagon_type, 
-		       quantity, desired_date, status, created_at
+		       quantity, desired_date, status, type, created_at
 		FROM orders
+		WHERE type = $1
 		ORDER BY created_at
-	`)
+	`, entity.External)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func (r *OrderRepository) List(ctx context.Context) ([]*entity.Order, error) {
 		var idStr, stationToIDStr string
 		o := &entity.Order{}
 		if err = rows.Scan(&idStr, &o.ClientName, &stationToIDStr, &o.WagonType,
-			&o.Quantity, &o.DesiredDate, &o.Status, &o.CreatedAt); err != nil {
+			&o.Quantity, &o.DesiredDate, &o.Status, &o.Type, &o.CreatedAt); err != nil {
 			return nil, err
 		}
 		if o.ID, err = uuid.Parse(idStr); err != nil {

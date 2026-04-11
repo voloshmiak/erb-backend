@@ -98,6 +98,8 @@ definitions:
         type: string
       status:
         $ref: '#/definitions/entity.OrderStatus'
+      type:
+        $ref: '#/definitions/entity.OrderType'
       wagonType:
         $ref: '#/definitions/entity.WagonType'
     type: object
@@ -113,6 +115,14 @@ definitions:
     - Matched
     - Fulfilled
     - Cancelled
+  entity.OrderType:
+    enum:
+    - external
+    - internal
+    type: string
+    x-enum-varnames:
+    - External
+    - Internal
   entity.Train:
     properties:
       arrivedAt:
@@ -201,6 +211,8 @@ definitions:
         type: integer
       stationToId:
         type: string
+      type:
+        $ref: '#/definitions/entity.OrderType'
       wagonType:
         $ref: '#/definitions/entity.WagonType'
     type: object

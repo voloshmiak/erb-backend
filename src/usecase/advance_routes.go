@@ -114,7 +114,7 @@ func (uc *AdvanceRoutesUseCase) completeAssignment(ctx context.Context,
 	if err != nil {
 		return errors.Wrap(err, "advance_routes: failed to update order "+step.OrderID.String())
 	}
-	if order != nil {
+	if order != nil && order.Type == entity.External {
 		uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderFulfilled, order))
 	}
 	uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.WagonArrived, entity.WagonArrivedPayload{

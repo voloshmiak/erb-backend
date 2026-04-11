@@ -563,6 +563,9 @@ const docTemplate = `{
                 "status": {
                     "$ref": "#/definitions/entity.OrderStatus"
                 },
+                "type": {
+                    "$ref": "#/definitions/entity.OrderType"
+                },
                 "wagonType": {
                     "$ref": "#/definitions/entity.WagonType"
                 }
@@ -581,6 +584,17 @@ const docTemplate = `{
                 "Matched",
                 "Fulfilled",
                 "Cancelled"
+            ]
+        },
+        "entity.OrderType": {
+            "type": "string",
+            "enum": [
+                "external",
+                "internal"
+            ],
+            "x-enum-varnames": [
+                "External",
+                "Internal"
             ]
         },
         "entity.Train": {
@@ -707,6 +721,9 @@ const docTemplate = `{
                 },
                 "stationToId": {
                     "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/entity.OrderType"
                 },
                 "wagonType": {
                     "$ref": "#/definitions/entity.WagonType"
