@@ -220,6 +220,167 @@ const docTemplate = `{
                 }
             }
         },
+        "/trains": {
+            "get": {
+                "description": "Returns a list of all active trains",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Train"
+                ],
+                "summary": "List Active Trains",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/entity.Train"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to list trains",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new train from a list of wagons and a route",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Train"
+                ],
+                "summary": "Create Train",
+                "parameters": [
+                    {
+                        "description": "Train payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.CreateTrainInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entity.Train"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create train",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/trains/{id}": {
+            "get": {
+                "description": "Returns details of a specific train",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Train"
+                ],
+                "summary": "Get Train Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Train ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entity.Train"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid train id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Train not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/trains/{id}/dispatch": {
+            "post": {
+                "description": "Dispatches a forming train to start its journey",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Train"
+                ],
+                "summary": "Dispatch Train",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Train ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Invalid train id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to dispatch train",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/wagons": {
             "get": {
                 "description": "Retrieves all wagons and their current status",
@@ -251,6 +412,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controller.CreateTrainInput": {
+            "type": "object",
+            "properties": {
+                "route": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "wagonIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "controller.edgeResponse": {
             "type": "object",
             "properties": {
@@ -405,6 +583,60 @@ const docTemplate = `{
                 "Cancelled"
             ]
         },
+        "entity.Train": {
+            "type": "object",
+            "properties": {
+                "arrivedAt": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "departedAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "nextStationId": {
+                    "type": "string"
+                },
+                "route": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sourceStationId": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/entity.TrainStatus"
+                },
+                "stepIndex": {
+                    "type": "integer"
+                },
+                "wagonIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "entity.TrainStatus": {
+            "type": "string",
+            "enum": [
+                "forming",
+                "in_transit",
+                "arrived"
+            ],
+            "x-enum-varnames": [
+                "TrainForming",
+                "TrainInTransit",
+                "TrainArrived"
+            ]
+        },
         "entity.Wagon": {
             "type": "object",
             "properties": {
@@ -437,13 +669,15 @@ const docTemplate = `{
                 "loaded",
                 "empty_moving",
                 "idle",
-                "maintenance"
+                "maintenance",
+                "in_train"
             ],
             "x-enum-varnames": [
                 "Loaded",
                 "EmptyMoving",
                 "Idle",
-                "Maintenance"
+                "Maintenance",
+                "InTrain"
             ]
         },
         "entity.WagonType": {
@@ -504,7 +738,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.2.1",
+	Version:          "1.2.2",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},

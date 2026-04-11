@@ -4,6 +4,7 @@ import (
 	"context"
 	"erb-backend/src/broadcaster"
 	"erb-backend/src/entity"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -45,6 +46,14 @@ type WagonRepository interface {
 	FindLoadedReadyToUnload(ctx context.Context, currentHour int64) ([]*entity.LoadedWagon, error)
 	UpdateStation(ctx context.Context, wagonID, stationID uuid.UUID) error
 	UpdateStatus(ctx context.Context, wagonID uuid.UUID, status entity.WagonStatus, stateUntilHour *int64) error
+}
+
+type TrainRepository interface {
+	Create(ctx context.Context, train *entity.Train) error
+	GetByID(ctx context.Context, id uuid.UUID) (*entity.Train, error)
+	ListActive(ctx context.Context) ([]*entity.Train, error)
+	UpdateStatus(ctx context.Context, id uuid.UUID, status entity.TrainStatus, at time.Time) error
+	UpdateProgress(ctx context.Context, train *entity.Train) error
 }
 
 type StationRepository interface {

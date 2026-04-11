@@ -43,6 +43,9 @@ const (
 	OrderFulfilled    EventType = "orderFulfilled"
 	WagonUnloaded     EventType = "wagonUnloaded"
 	SimTick           EventType = "simTick"
+	TrainCreated      EventType = "trainCreated"
+	TrainDispatched   EventType = "trainDispatched"
+	TrainArrived      EventType = "trainArrived"
 )
 
 type Event struct {

@@ -21,6 +21,7 @@ const (
 	EmptyMoving WagonStatus = "empty_moving"
 	Idle        WagonStatus = "idle"
 	Maintenance WagonStatus = "maintenance"
+	InTrain     WagonStatus = "in_train"
 )
 
 type Wagon struct {

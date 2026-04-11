@@ -23,7 +23,7 @@ import (
 )
 
 // @title           Empty Runner Buster API
-// @version         1.2.1
+// @version         1.2.2
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
@@ -69,6 +69,7 @@ func run() error {
 	assignmentRepository := repository.NewAssignmentRepository(conn)
 	routeStepRepository := repository.NewRouteStepRepository(conn)
 	simStateRepository := repository.NewSimStateRepository(conn)
+	trainRepository := repository.NewTrainRepository(conn)
 
 	// Load simulation state
 	initialHour, startedAt, err := simStateRepository.Load(context.Background())
@@ -94,10 +95,16 @@ func run() error {
 		routeStepRepository, wagonRepository, b)
 	unloadWagonsUsecase := usecase.NewUnloadWagonsUseCase(wagonRepository, b)
 
+	createTrainUsecase := usecase.NewCreateTrainUseCase(trainRepository, wagonRepository, b, clock)
+	dispatchTrainUsecase := usecase.NewDispatchTrainUseCase(trainRepository, stationRepository, b, clock)
+	listTrainsUsecase := usecase.NewListTrainsUseCase(trainRepository)
+	getTrainUsecase := usecase.NewGetTrainUseCase(trainRepository)
+	advanceTrainsUsecase := usecase.NewAdvanceTrainsUseCase(trainRepository, wagonRepository, stationRepository, b, clock)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	t := ticker.NewTicker(clock, simStateRepository, dispatchPlannedUsecase, advanceRoutesUsecase, unloadWagonsUsecase, b)
+	t := ticker.NewTicker(clock, simStateRepository, dispatchPlannedUsecase, advanceRoutesUsecase, advanceTrainsUsecase, unloadWagonsUsecase, b)
 	go t.Run(ctx)
 
 	healthController := controller.NewHealthController()
@@ -109,6 +116,10 @@ func run() error {
 	listOrdersController := controller.NewListOrdersController(listOrdersUsecase)
 	listWagonsController := controller.NewListWagonsController(listWagonsUsecase)
 	simStatusController := controller.NewSimStatusController(clock)
+	createTrainController := controller.NewCreateTrainController(createTrainUsecase)
+	dispatchTrainController := controller.NewDispatchTrainController(dispatchTrainUsecase, clock)
+	listTrainsController := controller.NewListTrainsController(listTrainsUsecase)
+	getTrainController := controller.NewGetTrainController(getTrainUsecase)
 
 	router.Handle("GET /api/health", healthController)
 	router.Handle("GET /api/docs", docsController)
@@ -119,6 +130,10 @@ func run() error {
 	router.Handle("POST /api/orders", createOrderController)
 	router.Handle("GET /api/events/stream", eventsStreamController)
 	router.Handle("GET /api/simulation", simStatusController)
+	router.Handle("GET /api/trains", listTrainsController)
+	router.Handle("POST /api/trains", createTrainController)
+	router.Handle("GET /api/trains/{id}", getTrainController)
+	router.Handle("POST /api/trains/{id}/dispatch", dispatchTrainController)
 	router.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	c := cors.New(cors.Options{

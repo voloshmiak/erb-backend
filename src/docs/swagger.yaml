@@ -1,5 +1,16 @@
 basePath: /api
 definitions:
+  controller.CreateTrainInput:
+    properties:
+      route:
+        items:
+          type: string
+        type: array
+      wagonIds:
+        items:
+          type: string
+        type: array
+    type: object
   controller.edgeResponse:
     properties:
       distanceKm:
@@ -102,6 +113,43 @@ definitions:
     - Matched
     - Fulfilled
     - Cancelled
+  entity.Train:
+    properties:
+      arrivedAt:
+        type: string
+      createdAt:
+        type: string
+      departedAt:
+        type: string
+      id:
+        type: string
+      nextStationId:
+        type: string
+      route:
+        items:
+          type: string
+        type: array
+      sourceStationId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.TrainStatus'
+      stepIndex:
+        type: integer
+      wagonIds:
+        items:
+          type: string
+        type: array
+    type: object
+  entity.TrainStatus:
+    enum:
+    - forming
+    - in_transit
+    - arrived
+    type: string
+    x-enum-varnames:
+    - TrainForming
+    - TrainInTransit
+    - TrainArrived
   entity.Wagon:
     properties:
       currentStationId:
@@ -125,12 +173,14 @@ definitions:
     - empty_moving
     - idle
     - maintenance
+    - in_train
     type: string
     x-enum-varnames:
     - Loaded
     - EmptyMoving
     - Idle
     - Maintenance
+    - InTrain
   entity.WagonType:
     enum:
     - gondola
@@ -171,7 +221,7 @@ info:
   contact: {}
   description: This is the API documentation for the Empty Runner Buster application
   title: Empty Runner Buster API
-  version: 1.2.1
+  version: 1.2.2
 paths:
   /docs:
     get:
@@ -308,6 +358,112 @@ paths:
       summary: List Stations
       tags:
       - Station
+  /trains:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all active trains
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/entity.Train'
+            type: array
+        "500":
+          description: Failed to list trains
+          schema:
+            type: string
+      summary: List Active Trains
+      tags:
+      - Train
+    post:
+      consumes:
+      - application/json
+      description: Creates a new train from a list of wagons and a route
+      parameters:
+      - description: Train payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controller.CreateTrainInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.Train'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Failed to create train
+          schema:
+            type: string
+      summary: Create Train
+      tags:
+      - Train
+  /trains/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns details of a specific train
+      parameters:
+      - description: Train ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.Train'
+        "400":
+          description: Invalid train id
+          schema:
+            type: string
+        "404":
+          description: Train not found
+          schema:
+            type: string
+      summary: Get Train Details
+      tags:
+      - Train
+  /trains/{id}/dispatch:
+    post:
+      consumes:
+      - application/json
+      description: Dispatches a forming train to start its journey
+      parameters:
+      - description: Train ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid train id
+          schema:
+            type: string
+        "500":
+          description: Failed to dispatch train
+          schema:
+            type: string
+      summary: Dispatch Train
+      tags:
+      - Train
   /wagons:
     get:
       consumes:
