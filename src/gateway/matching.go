@@ -62,7 +62,7 @@ type edgeDTO struct {
 }
 
 type locomotiveDTO struct {
-	LocomotiveID     string `json:"locomotive_id"`
+	LocomotiveID     string `json:"loco_id"`
 	CurrentStationID string `json:"current_station_id"`
 }
 
@@ -90,13 +90,14 @@ type unmatchedOrder struct {
 }
 
 type trainGroupDTO struct {
-	TrainID      string   `json:"train_id"`
-	WagonIDs     []string `json:"wagon_ids"`
-	Source       string   `json:"source"`
-	Dest         string   `json:"dest"`
-	LocomotiveID *string  `json:"loco_id"`
-	RepositionKM float64  `json:"reposition_km"`
-	DistanceKM   float64  `json:"distance_km"`
+	TrainID        string   `json:"train_id"`
+	WagonIDs       []string `json:"wagon_ids"`
+	Source         string   `json:"source_station_id"`
+	Dest           string   `json:"dest_station_id"`
+	LocomotiveID   *string  `json:"loco_id"`
+	RepositionKM   float64  `json:"loco_reposition_km"`
+	DistanceKM     float64  `json:"distance_km"`
+	EstimatedHours float64  `json:"estimated_hours"`
 }
 
 type matchResponse struct {
@@ -194,6 +195,8 @@ func (g *MatchingGateway) Match(ctx context.Context, orders []*entity.Order,
 		return nil, nil, nil, fmt.Errorf("marshal request: %w", err)
 	}
 
+	log.Printf("matching request: %s", string(body))
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.URL+matchEndpoint,
 		bytes.NewReader(body))
 	if err != nil {
@@ -212,12 +215,19 @@ func (g *MatchingGateway) Match(ctx context.Context, orders []*entity.Order,
 		}
 	}(resp.Body)
 
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	log.Printf("matching response: %s", string(respBody))
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, nil, nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
+		return nil, nil, nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result matchResponse
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err = json.Unmarshal(respBody, &result); err != nil {
 		return nil, nil, nil, fmt.Errorf("decode response: %w", err)
 	}
 
@@ -263,11 +273,8 @@ func (g *MatchingGateway) Match(ctx context.Context, orders []*entity.Order,
 
 	trainGroups := make([]entity.TrainGroupResult, 0, len(result.TrainGroups))
 	for _, tg := range result.TrainGroups {
-		trainID, err := uuid.Parse(tg.TrainID)
-		if err != nil {
-			log.Printf("match: failed to parse train_id %q: %v", tg.TrainID, err)
-			continue
-		}
+		trainID := uuid.New()
+
 		sourceID, err := uuid.Parse(tg.Source)
 		if err != nil {
 			log.Printf("match: failed to parse source station_id %q: %v", tg.Source, err)

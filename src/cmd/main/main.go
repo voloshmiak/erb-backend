@@ -23,7 +23,7 @@ import (
 )
 
 // @title           Empty Runner Buster API
-// @version         1.2.5
+// @version         1.2.6
 // @description		This is the API documentation for the Empty Runner Buster application
 // @BasePath        /api
 func main() {
@@ -105,7 +105,7 @@ func run() error {
 	dispatchTrainUsecase := usecase.NewDispatchTrainUseCase(trainRepository, stationRepository, locomotiveRepository, b, clock)
 	listTrainsUsecase := usecase.NewListTrainsUseCase(trainRepository)
 	getTrainUsecase := usecase.NewGetTrainUseCase(trainRepository)
-	advanceTrainsUsecase := usecase.NewAdvanceTrainsUseCase(trainRepository, wagonRepository, stationRepository, b, clock)
+	advanceTrainsUsecase := usecase.NewAdvanceTrainsUseCase(trainRepository, wagonRepository, stationRepository, assignmentRepository, orderRepository, b, clock)
 	advanceLocomotivesUsecase := usecase.NewAdvanceLocomotivesUseCase(locomotiveRepository, b)
 	listLocomotivesUsecase := usecase.NewListLocomotivesUseCase(locomotiveRepository)
 	getLocomotiveUsecase := usecase.NewGetLocomotiveUseCase(locomotiveRepository)

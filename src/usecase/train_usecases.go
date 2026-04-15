@@ -174,15 +174,17 @@ func (uc *DispatchTrainUseCase) Execute(ctx context.Context, trainID uuid.UUID, 
 }
 
 type AdvanceTrainsUseCase struct {
-	trainRepo   TrainRepository
-	wagonRepo   WagonRepository
-	stationRepo StationRepository
-	broadcaster Broadcaster
-	clock       *simclock.SimClock
+	trainRepo      TrainRepository
+	wagonRepo      WagonRepository
+	stationRepo    StationRepository
+	assignmentRepo AssignmentRepository
+	orderRepo      OrderRepository
+	broadcaster    Broadcaster
+	clock          *simclock.SimClock
 }
 
-func NewAdvanceTrainsUseCase(trainRepo TrainRepository, wagonRepo WagonRepository, stationRepo StationRepository, b Broadcaster, clock *simclock.SimClock) *AdvanceTrainsUseCase {
-	return &AdvanceTrainsUseCase{trainRepo: trainRepo, wagonRepo: wagonRepo, stationRepo: stationRepo, broadcaster: b, clock: clock}
+func NewAdvanceTrainsUseCase(trainRepo TrainRepository, wagonRepo WagonRepository, stationRepo StationRepository, assignmentRepo AssignmentRepository, orderRepo OrderRepository, b Broadcaster, clock *simclock.SimClock) *AdvanceTrainsUseCase {
+	return &AdvanceTrainsUseCase{trainRepo: trainRepo, wagonRepo: wagonRepo, stationRepo: stationRepo, assignmentRepo: assignmentRepo, orderRepo: orderRepo, broadcaster: b, clock: clock}
 }
 
 func (uc *AdvanceTrainsUseCase) Execute(ctx context.Context, simHour int64) error {
@@ -266,9 +268,30 @@ func (uc *AdvanceTrainsUseCase) advanceTrain(ctx context.Context, t *entity.Trai
 		now := uc.clock.ToDisplayTime(simHour)
 		t.ArrivedAt = &now
 
+		unloadUntil := simHour + unloadDurationHours
 		for _, wagonID := range t.WagonIDs {
-			if err := uc.wagonRepo.UpdateStatus(ctx, wagonID, entity.Idle, nil); err != nil {
+			if err := uc.wagonRepo.UpdateStatus(ctx, wagonID, entity.Loaded, &unloadUntil); err != nil {
 				return err
+			}
+			assignment, err := uc.assignmentRepo.FindActiveByWagonID(ctx, wagonID)
+			if err != nil {
+				fmt.Printf("advance_trains: failed to find assignment for wagon %s: %v\n", wagonID, err)
+				continue
+			}
+			if assignment == nil {
+				continue
+			}
+			if err := uc.assignmentRepo.UpdateStatus(ctx, assignment.ID, entity.AssignmentDelivered); err != nil {
+				fmt.Printf("advance_trains: failed to deliver assignment %s: %v\n", assignment.ID, err)
+				continue
+			}
+			order, err := uc.orderRepo.UpdateIfFulfilled(ctx, assignment.OrderID)
+			if err != nil {
+				fmt.Printf("advance_trains: failed to check fulfillment for order %s: %v\n", assignment.OrderID, err)
+				continue
+			}
+			if order != nil && order.Type == entity.External {
+				uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.OrderFulfilled, order))
 			}
 		}
 		uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.TrainArrived, t))

@@ -22,6 +22,7 @@ type RouteStepRepository interface {
 type AssignmentRepository interface {
 	Create(ctx context.Context, assignment *entity.Assignment) error
 	FindOldestPlanned(ctx context.Context) (*entity.PlannedAssignment, error)
+	FindActiveByWagonID(ctx context.Context, wagonID uuid.UUID) (*entity.Assignment, error)
 	UpdateStatus(ctx context.Context, assignmentID uuid.UUID, status entity.AssignmentStatus) error
 	GetStats(ctx context.Context) (*entity.AssignmentStats, error)
 }

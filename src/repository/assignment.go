@@ -83,6 +83,30 @@ func (r *AssignmentRepository) FindOldestPlanned(ctx context.Context) (*entity.P
 	return a, nil
 }
 
+func (r *AssignmentRepository) FindActiveByWagonID(ctx context.Context, wagonID uuid.UUID) (*entity.Assignment, error) {
+	var idStr, orderIDStr string
+	err := r.conn.QueryRowContext(ctx, `
+		SELECT id::text, order_id::text
+		FROM assignments
+		WHERE wagon_id = $1 AND status != $2
+		LIMIT 1
+	`, wagonID, entity.AssignmentDelivered).Scan(&idStr, &orderIDStr)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	a := &entity.Assignment{WagonID: wagonID}
+	if a.ID, err = uuid.Parse(idStr); err != nil {
+		return nil, err
+	}
+	if a.OrderID, err = uuid.Parse(orderIDStr); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
 func (r *AssignmentRepository) UpdateStatus(ctx context.Context, assignmentID uuid.UUID,
 	status entity.AssignmentStatus) error {
 	_, err := r.conn.ExecContext(ctx,
