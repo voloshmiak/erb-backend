@@ -22,6 +22,7 @@ type Train struct {
 	SourceStationID uuid.UUID   `json:"sourceStationId"`
 	NextStationID   uuid.UUID   `json:"nextStationId"`
 	Status          TrainStatus `json:"status"`
+	LocomotiveID    *uuid.UUID  `json:"locomotiveId,omitempty"`
 	CreatedAt       time.Time   `json:"createdAt"`
 	DepartedAt      *time.Time  `json:"departedAt,omitempty"`
 	ArrivedAt       *time.Time  `json:"arrivedAt,omitempty"`

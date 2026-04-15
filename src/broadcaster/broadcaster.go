@@ -18,7 +18,7 @@ func New() *Broadcaster {
 }
 
 func (b *Broadcaster) Subscribe() chan string {
-	ch := make(chan string, 8)
+	ch := make(chan string, 256)
 	b.mu.Lock()
 	b.clients[ch] = struct{}{}
 	b.mu.Unlock()
@@ -35,17 +35,19 @@ func (b *Broadcaster) Unsubscribe(ch chan string) {
 type EventType string
 
 const (
-	OrderCreated      EventType = "orderCreated"
-	WagonMoved        EventType = "wagonMoved"
-	WagonArrived      EventType = "wagonArrived"
-	AssignmentCreated EventType = "assignmentCreated"
-	WagonDispatched   EventType = "wagonDispatched"
-	OrderFulfilled    EventType = "orderFulfilled"
-	WagonUnloaded     EventType = "wagonUnloaded"
-	SimTick           EventType = "simTick"
-	TrainCreated      EventType = "trainCreated"
-	TrainDispatched   EventType = "trainDispatched"
-	TrainArrived      EventType = "trainArrived"
+	OrderCreated         EventType = "orderCreated"
+	WagonMoved           EventType = "wagonMoved"
+	WagonArrived         EventType = "wagonArrived"
+	AssignmentCreated    EventType = "assignmentCreated"
+	WagonDispatched      EventType = "wagonDispatched"
+	OrderFulfilled       EventType = "orderFulfilled"
+	WagonUnloaded        EventType = "wagonUnloaded"
+	SimTick              EventType = "simTick"
+	TrainCreated         EventType = "trainCreated"
+	TrainDispatched      EventType = "trainDispatched"
+	TrainArrived         EventType = "trainArrived"
+	LocomotiveIdle       EventType = "locomotiveIdle"
+	LocomotiveDispatched EventType = "locomotiveDispatched"
 )
 
 type Event struct {
@@ -72,6 +74,7 @@ func (b *Broadcaster) Publish(e Event) {
 		select {
 		case ch <- string(data):
 		default:
+			log.Printf("broadcaster: dropped event %s (buffer full)", e.Type)
 		}
 	}
 }

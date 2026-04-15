@@ -28,13 +28,20 @@ func (r *TrainRepository) Create(ctx context.Context, t *entity.Train) error {
 		return err
 	}
 
+	var locoID any
+	if t.LocomotiveID != nil {
+		locoID = *t.LocomotiveID
+	}
+
 	_, err = r.conn.ExecContext(ctx, `
 		INSERT INTO trains (
 			id, wagon_ids, route, step_index, source_station_id, next_station_id,
-			status, created_at, activated_at_hour, duration_hours
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			status, locomotive_id, created_at, activated_at_hour, duration_hours,
+			departed_at, arrived_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`, t.ID, wagonIDsJSON, routeJSON, t.StepIndex, t.SourceStationID, t.NextStationID,
-		t.Status, t.CreatedAt, t.ActivatedAtHour, t.DurationHours)
+		t.Status, locoID, t.CreatedAt, t.ActivatedAtHour, t.DurationHours,
+		t.DepartedAt, t.ArrivedAt)
 	return err
 }
 
@@ -42,13 +49,14 @@ func (r *TrainRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Tr
 	t := &entity.Train{}
 	var wagonIDsJSON, routeJSON []byte
 	var departedAt, arrivedAt sql.NullTime
+	var locoID sql.NullString
 
 	err := r.conn.QueryRowContext(ctx, `
 		SELECT id, wagon_ids, route, step_index, source_station_id, next_station_id,
-			   status, created_at, departed_at, arrived_at, activated_at_hour, duration_hours
+			   status, locomotive_id, created_at, departed_at, arrived_at, activated_at_hour, duration_hours
 		FROM trains WHERE id = $1
 	`, id).Scan(&t.ID, &wagonIDsJSON, &routeJSON, &t.StepIndex, &t.SourceStationID, &t.NextStationID,
-		&t.Status, &t.CreatedAt, &departedAt, &arrivedAt, &t.ActivatedAtHour, &t.DurationHours)
+		&t.Status, &locoID, &t.CreatedAt, &departedAt, &arrivedAt, &t.ActivatedAtHour, &t.DurationHours)
 
 	if err != nil {
 		return nil, err
@@ -61,6 +69,12 @@ func (r *TrainRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Tr
 		return nil, err
 	}
 
+	if locoID.Valid {
+		parsed, err := uuid.Parse(locoID.String)
+		if err == nil {
+			t.LocomotiveID = &parsed
+		}
+	}
 	if departedAt.Valid {
 		t.DepartedAt = &departedAt.Time
 	}
@@ -73,7 +87,7 @@ func (r *TrainRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Tr
 func (r *TrainRepository) ListActive(ctx context.Context) ([]*entity.Train, error) {
 	rows, err := r.conn.QueryContext(ctx, `
 		SELECT id, wagon_ids, route, step_index, source_station_id, next_station_id,
-			   status, created_at, departed_at, arrived_at, activated_at_hour, duration_hours
+			   status, locomotive_id, created_at, departed_at, arrived_at, activated_at_hour, duration_hours
 		FROM trains
 		WHERE status != $1
 	`, entity.TrainArrived)
@@ -87,8 +101,9 @@ func (r *TrainRepository) ListActive(ctx context.Context) ([]*entity.Train, erro
 		t := &entity.Train{}
 		var wagonIDsJSON, routeJSON []byte
 		var departedAt, arrivedAt sql.NullTime
+		var locoID sql.NullString
 		if err := rows.Scan(&t.ID, &wagonIDsJSON, &routeJSON, &t.StepIndex, &t.SourceStationID, &t.NextStationID,
-			&t.Status, &t.CreatedAt, &departedAt, &arrivedAt, &t.ActivatedAtHour, &t.DurationHours); err != nil {
+			&t.Status, &locoID, &t.CreatedAt, &departedAt, &arrivedAt, &t.ActivatedAtHour, &t.DurationHours); err != nil {
 			return nil, err
 		}
 
@@ -99,6 +114,12 @@ func (r *TrainRepository) ListActive(ctx context.Context) ([]*entity.Train, erro
 			return nil, err
 		}
 
+		if locoID.Valid {
+			parsed, err := uuid.Parse(locoID.String)
+			if err == nil {
+				t.LocomotiveID = &parsed
+			}
+		}
 		if departedAt.Valid {
 			t.DepartedAt = &departedAt.Time
 		}

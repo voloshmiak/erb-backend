@@ -133,6 +133,8 @@ definitions:
         type: string
       id:
         type: string
+      locomotiveId:
+        type: string
       nextStationId:
         type: string
       route:
@@ -216,6 +218,33 @@ definitions:
       wagonType:
         $ref: '#/definitions/entity.WagonType'
     type: object
+  usecase.MetricsOutput:
+    properties:
+      avgEmptyRunKm:
+        type: number
+      costSavedVsNaive:
+        type: number
+      matchRate:
+        type: number
+      naiveCost:
+        type: number
+      optimizedCost:
+        type: number
+      ordersMatched:
+        type: integer
+      ordersUnmatched:
+        type: integer
+      totalCostEmptyRun:
+        type: integer
+      totalDeliveredAssignments:
+        type: integer
+      totalEmptyRunKm:
+        type: integer
+      totalLoadedRunKm:
+        type: integer
+      totalRevenue:
+        type: integer
+    type: object
   usecase.WagonTypeStatus:
     properties:
       emptyMoving:
@@ -233,7 +262,7 @@ info:
   contact: {}
   description: This is the API documentation for the Empty Runner Buster application
   title: Empty Runner Buster API
-  version: 1.2.3
+  version: 1.2.5
 paths:
   /docs:
     get:
@@ -290,6 +319,24 @@ paths:
       summary: Health Check
       tags:
       - System
+  /metrics:
+    get:
+      description: 'Returns financial and operational metrics: empty run costs, revenue,
+        cost saved vs naive'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/usecase.MetricsOutput'
+        "500":
+          description: Failed to retrieve metrics
+          schema:
+            type: string
+      summary: Financial Metrics
+      tags:
+      - Metrics
   /orders:
     get:
       consumes:

@@ -98,6 +98,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/metrics": {
+            "get": {
+                "description": "Returns financial and operational metrics: empty run costs, revenue, cost saved vs naive",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Metrics"
+                ],
+                "summary": "Financial Metrics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/usecase.MetricsOutput"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve metrics",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/orders": {
             "get": {
                 "description": "Retrieves all orders and their current status",
@@ -612,6 +638,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "locomotiveId": {
+                    "type": "string"
+                },
                 "nextStationId": {
                     "type": "string"
                 },
@@ -730,6 +759,47 @@ const docTemplate = `{
                 }
             }
         },
+        "usecase.MetricsOutput": {
+            "type": "object",
+            "properties": {
+                "avgEmptyRunKm": {
+                    "type": "number"
+                },
+                "costSavedVsNaive": {
+                    "type": "number"
+                },
+                "matchRate": {
+                    "type": "number"
+                },
+                "naiveCost": {
+                    "type": "number"
+                },
+                "optimizedCost": {
+                    "type": "number"
+                },
+                "ordersMatched": {
+                    "type": "integer"
+                },
+                "ordersUnmatched": {
+                    "type": "integer"
+                },
+                "totalCostEmptyRun": {
+                    "type": "integer"
+                },
+                "totalDeliveredAssignments": {
+                    "type": "integer"
+                },
+                "totalEmptyRunKm": {
+                    "type": "integer"
+                },
+                "totalLoadedRunKm": {
+                    "type": "integer"
+                },
+                "totalRevenue": {
+                    "type": "integer"
+                }
+            }
+        },
         "usecase.WagonTypeStatus": {
             "type": "object",
             "properties": {
@@ -755,7 +825,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.2.3",
+	Version:          "1.2.5",
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},

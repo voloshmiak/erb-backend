@@ -4,7 +4,7 @@
         "description": "This is the API documentation for the Empty Runner Buster application",
         "title": "Empty Runner Buster API",
         "contact": {},
-        "version": "1.2.3"
+        "version": "1.2.5"
     },
     "basePath": "/api",
     "paths": {
@@ -84,6 +84,32 @@
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics": {
+            "get": {
+                "description": "Returns financial and operational metrics: empty run costs, revenue, cost saved vs naive",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Metrics"
+                ],
+                "summary": "Financial Metrics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/usecase.MetricsOutput"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve metrics",
                         "schema": {
                             "type": "string"
                         }
@@ -605,6 +631,9 @@
                 "id": {
                     "type": "string"
                 },
+                "locomotiveId": {
+                    "type": "string"
+                },
                 "nextStationId": {
                     "type": "string"
                 },
@@ -720,6 +749,47 @@
                 },
                 "wagonType": {
                     "$ref": "#/definitions/entity.WagonType"
+                }
+            }
+        },
+        "usecase.MetricsOutput": {
+            "type": "object",
+            "properties": {
+                "avgEmptyRunKm": {
+                    "type": "number"
+                },
+                "costSavedVsNaive": {
+                    "type": "number"
+                },
+                "matchRate": {
+                    "type": "number"
+                },
+                "naiveCost": {
+                    "type": "number"
+                },
+                "optimizedCost": {
+                    "type": "number"
+                },
+                "ordersMatched": {
+                    "type": "integer"
+                },
+                "ordersUnmatched": {
+                    "type": "integer"
+                },
+                "totalCostEmptyRun": {
+                    "type": "integer"
+                },
+                "totalDeliveredAssignments": {
+                    "type": "integer"
+                },
+                "totalEmptyRunKm": {
+                    "type": "integer"
+                },
+                "totalLoadedRunKm": {
+                    "type": "integer"
+                },
+                "totalRevenue": {
+                    "type": "integer"
                 }
             }
         },

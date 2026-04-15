@@ -25,9 +25,12 @@ type CreateOrderUseCase struct {
 	assignmentRepository AssignmentRepository
 	routeStepRepository  RouteStepRepository
 	wagonRepository      WagonRepository
+	trainRepository      TrainRepository
+	locomotiveRepository LocomotiveRepository
 	broadcaster          Broadcaster
 	matchingGateway      MatchingGateway
 	simClock             *simclock.SimClock
+	metricsStore         *MetricsStore
 }
 
 func NewCreateOrderUseCase(
@@ -36,9 +39,12 @@ func NewCreateOrderUseCase(
 	assignmentRepository AssignmentRepository,
 	routeStepRepository RouteStepRepository,
 	wagonRepository WagonRepository,
+	trainRepository TrainRepository,
+	locomotiveRepository LocomotiveRepository,
 	broadcaster Broadcaster,
 	matchingGateway MatchingGateway,
 	clock *simclock.SimClock,
+	metricsStore *MetricsStore,
 ) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
 		orderRepository:      orderRepository,
@@ -46,9 +52,12 @@ func NewCreateOrderUseCase(
 		assignmentRepository: assignmentRepository,
 		routeStepRepository:  routeStepRepository,
 		wagonRepository:      wagonRepository,
+		trainRepository:      trainRepository,
+		locomotiveRepository: locomotiveRepository,
 		broadcaster:          broadcaster,
 		matchingGateway:      matchingGateway,
 		simClock:             clock,
+		metricsStore:         metricsStore,
 	}
 }
 
@@ -145,17 +154,32 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 		return errors.Wrap(err, "failed to get stations and edges")
 	}
 
-	results, err := u.matchingGateway.Match(ctx, orders, wagons, stations, edges)
+	locomotives, err := u.locomotiveRepository.ListByStatus(ctx, entity.LocomotiveIdle)
+	if err != nil {
+		return errors.Wrap(err, "failed to get idle locomotives")
+	}
+
+	results, trainGroups, metrics, err := u.matchingGateway.Match(ctx, orders, wagons, stations, edges, locomotives)
 	if err != nil {
 		return errors.Wrap(err, "matching service failed")
 	}
 
+	u.metricsStore.Accumulate(ctx, metrics)
+
 	edgeDistMap := buildEdgeDistanceMap(edges)
 	stationTypeMap := buildStationTypeMap(stations)
+
+	wagonsInGroups := make(map[uuid.UUID]struct{})
+	for _, tg := range trainGroups {
+		for _, wid := range tg.WagonIDs {
+			wagonsInGroups[wid] = struct{}{}
+		}
+	}
 
 	for _, r := range results {
 		r.Assignment.ID = uuid.New()
 		r.Assignment.Status = entity.AssignmentPlanned
+		r.Assignment.LoadedRunKM = r.Assignment.EmptyRunKM
 
 		// Compute step durations first to set ETA before inserting
 		stepDurations := make([]float64, len(r.Route))
@@ -175,11 +199,14 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 			continue
 		}
 
-		for i, stationID := range r.Route {
-			if err = u.routeStepRepository.CreateForAssignment(ctx, r.Assignment.ID,
-				i, stationID, stepDurations[i]); err != nil {
-				log.Printf("match: failed to create route step %d for assignment %s: %v",
-					i, r.Assignment.ID, err)
+		// Skip route steps if wagon is part of a train group (AdvanceTrains will move it)
+		if _, inGroup := wagonsInGroups[r.Assignment.WagonID]; !inGroup {
+			for i, stationID := range r.Route {
+				if err = u.routeStepRepository.CreateForAssignment(ctx, r.Assignment.ID,
+					i, stationID, stepDurations[i]); err != nil {
+					log.Printf("match: failed to create route step %d for assignment %s: %v",
+						i, r.Assignment.ID, err)
+				}
 			}
 		}
 
@@ -188,6 +215,70 @@ func (u *CreateOrderUseCase) match(ctx context.Context) error {
 		}
 
 		u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.AssignmentCreated, r))
+	}
+
+	// Materialize train groups
+	simHour := u.simClock.Now()
+	for _, tg := range trainGroups {
+		if len(tg.WagonIDs) == 0 {
+			continue
+		}
+
+		repositionHours := tg.RepositionKM / 40.0
+		distanceHours := tg.DistanceKM / 40.0
+		// Train starts moving after loco finishes repositioning
+		activatedAtHour := simHour + int64(math.Ceil(repositionHours))
+		totalArrivalHour := simHour + int64(math.Ceil(repositionHours+distanceHours))
+
+		train := &entity.Train{
+			ID:              tg.TrainID, // reuse python-side UUID
+			WagonIDs:        tg.WagonIDs,
+			Route:           []uuid.UUID{tg.SourceStationID, tg.DestinationStationID},
+			StepIndex:       0,
+			SourceStationID: tg.SourceStationID,
+			NextStationID:   tg.DestinationStationID,
+			Status:          entity.TrainInTransit,
+			LocomotiveID:    tg.LocomotiveID,
+			CreatedAt:       u.simClock.ToDisplayTime(simHour),
+			ActivatedAtHour: activatedAtHour,
+			DurationHours:   distanceHours,
+		}
+		departedAt := u.simClock.ToDisplayTime(activatedAtHour)
+		train.DepartedAt = &departedAt
+
+		if err := u.trainRepository.Create(ctx, train); err != nil {
+			log.Printf("match: failed to create train %s: %v", train.ID, err)
+			continue
+		}
+
+		// Mark wagons as in_train
+		for _, wid := range tg.WagonIDs {
+			if err := u.wagonRepository.UpdateStatus(ctx, wid, entity.InTrain, nil); err != nil {
+				log.Printf("match: failed to mark wagon %s in_train: %v", wid, err)
+			}
+		}
+
+		// Reserve locomotive (if assigned by matcher)
+		if tg.LocomotiveID != nil {
+			loco, err := u.locomotiveRepository.GetByID(ctx, *tg.LocomotiveID)
+			if err != nil {
+				log.Printf("match: failed to fetch loco %s: %v", tg.LocomotiveID, err)
+			} else {
+				loco.Status = entity.LocomotiveInTransit
+				loco.TrainID = &train.ID
+				loco.AvailableAtHour = totalArrivalHour
+				loco.AvailableAt = u.simClock.ToDisplayTime(totalArrivalHour)
+				loco.CurrentStationID = tg.DestinationStationID
+				if err := u.locomotiveRepository.Update(ctx, loco); err != nil {
+					log.Printf("match: failed to reserve loco %s: %v", loco.ID, err)
+				} else {
+					u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.LocomotiveDispatched, loco))
+				}
+			}
+		}
+
+		u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.TrainCreated, train))
+		u.broadcaster.Publish(broadcaster.NewEvent(broadcaster.TrainDispatched, train))
 	}
 
 	return nil

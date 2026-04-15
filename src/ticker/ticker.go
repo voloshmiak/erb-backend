@@ -11,15 +11,16 @@ import (
 )
 
 type Ticker struct {
-	simClock        *simclock.SimClock
-	simStateRepo    *repository.SimStateRepository
-	dispatchPlanned *usecase.DispatchPlannedUseCase
-	advanceRoutes   *usecase.AdvanceRoutesUseCase
-	advanceTrains   *usecase.AdvanceTrainsUseCase
-	unloadWagons    *usecase.UnloadWagonsUseCase
-	b               *broadcaster.Broadcaster
-	persistEvery    int
-	tickCount       int
+	simClock           *simclock.SimClock
+	simStateRepo       *repository.SimStateRepository
+	dispatchPlanned    *usecase.DispatchPlannedUseCase
+	advanceRoutes      *usecase.AdvanceRoutesUseCase
+	advanceTrains      *usecase.AdvanceTrainsUseCase
+	advanceLocomotives *usecase.AdvanceLocomotivesUseCase
+	unloadWagons       *usecase.UnloadWagonsUseCase
+	b                  *broadcaster.Broadcaster
+	persistEvery       int
+	tickCount          int
 }
 
 func NewTicker(
@@ -28,18 +29,20 @@ func NewTicker(
 	dispatchPlanned *usecase.DispatchPlannedUseCase,
 	advanceRoutes *usecase.AdvanceRoutesUseCase,
 	advanceTrains *usecase.AdvanceTrainsUseCase,
+	advanceLocomotives *usecase.AdvanceLocomotivesUseCase,
 	unloadWagons *usecase.UnloadWagonsUseCase,
 	b *broadcaster.Broadcaster,
 ) *Ticker {
 	return &Ticker{
-		simClock:        clock,
-		simStateRepo:    simStateRepo,
-		dispatchPlanned: dispatchPlanned,
-		advanceRoutes:   advanceRoutes,
-		advanceTrains:   advanceTrains,
-		unloadWagons:    unloadWagons,
-		b:               b,
-		persistEvery:    10,
+		simClock:           clock,
+		simStateRepo:       simStateRepo,
+		dispatchPlanned:    dispatchPlanned,
+		advanceRoutes:      advanceRoutes,
+		advanceTrains:      advanceTrains,
+		advanceLocomotives: advanceLocomotives,
+		unloadWagons:       unloadWagons,
+		b:                  b,
+		persistEvery:       10,
 	}
 }
 
@@ -94,6 +97,11 @@ func (t *Ticker) tick(ctx context.Context) {
 	err = t.advanceTrains.Execute(ctx, currentHour)
 	if err != nil {
 		log.Println("ticker: failed to advance trains: ", err)
+		return
+	}
+	err = t.advanceLocomotives.Execute(ctx, currentHour)
+	if err != nil {
+		log.Println("ticker: failed to advance locomotives: ", err)
 		return
 	}
 }

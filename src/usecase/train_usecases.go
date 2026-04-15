@@ -82,14 +82,15 @@ func (uc *CreateTrainUseCase) Execute(ctx context.Context, wagonIDs []uuid.UUID,
 }
 
 type DispatchTrainUseCase struct {
-	trainRepo   TrainRepository
-	stationRepo StationRepository
-	broadcaster Broadcaster
-	clock       *simclock.SimClock
+	trainRepo      TrainRepository
+	stationRepo    StationRepository
+	locomotiveRepo LocomotiveRepository
+	broadcaster    Broadcaster
+	clock          *simclock.SimClock
 }
 
-func NewDispatchTrainUseCase(trainRepo TrainRepository, stationRepo StationRepository, b Broadcaster, clock *simclock.SimClock) *DispatchTrainUseCase {
-	return &DispatchTrainUseCase{trainRepo: trainRepo, stationRepo: stationRepo, broadcaster: b, clock: clock}
+func NewDispatchTrainUseCase(trainRepo TrainRepository, stationRepo StationRepository, locomotiveRepo LocomotiveRepository, b Broadcaster, clock *simclock.SimClock) *DispatchTrainUseCase {
+	return &DispatchTrainUseCase{trainRepo: trainRepo, stationRepo: stationRepo, locomotiveRepo: locomotiveRepo, broadcaster: b, clock: clock}
 }
 
 func (uc *DispatchTrainUseCase) Execute(ctx context.Context, trainID uuid.UUID, simHour int64) error {
@@ -102,28 +103,47 @@ func (uc *DispatchTrainUseCase) Execute(ctx context.Context, trainID uuid.UUID, 
 		return fmt.Errorf("train %s is not in forming status", trainID)
 	}
 
+	// Assign locomotive
+	loco, err := uc.locomotiveRepo.GetAvailableAtStation(ctx, train.SourceStationID)
+	if err != nil {
+		return fmt.Errorf("no locomotive available at station %s: %w", train.SourceStationID, err)
+	}
+
 	_, edges, err := uc.stationRepo.List(ctx)
 	if err != nil {
 		return err
 	}
 
-	var duration float64
-	found := false
+	// Calculate total route duration
+	edgeDistMap := make(map[[2]uuid.UUID]float64)
 	for _, e := range edges {
-		if e.FromStationID == train.SourceStationID && e.ToStationID == train.NextStationID {
-			duration = e.DistanceKM / 60.0 // Assuming 60 km/h
-			found = true
-			break
+		if e.IsActive {
+			edgeDistMap[[2]uuid.UUID{e.FromStationID, e.ToStationID}] = e.DistanceKM
 		}
 	}
 
-	if !found {
+	var totalDuration float64
+	for i := 0; i < len(train.Route)-1; i++ {
+		from := train.Route[i]
+		to := train.Route[i+1]
+		dist, ok := edgeDistMap[[2]uuid.UUID{from, to}]
+		if !ok {
+			return fmt.Errorf("no edge found between %s and %s", from, to)
+		}
+		totalDuration += dist / 60.0 // Assuming 60 km/h
+	}
+
+	// Set current segment duration
+	var currentSegmentDuration float64
+	dist, ok := edgeDistMap[[2]uuid.UUID{train.SourceStationID, train.NextStationID}]
+	if !ok {
 		return fmt.Errorf("no edge found between %s and %s", train.SourceStationID, train.NextStationID)
 	}
+	currentSegmentDuration = dist / 60.0
 
 	train.Status = entity.TrainInTransit
 	train.ActivatedAtHour = simHour
-	train.DurationHours = duration
+	train.DurationHours = currentSegmentDuration
 
 	now := uc.clock.ToDisplayTime(simHour)
 	train.DepartedAt = &now
@@ -135,6 +155,17 @@ func (uc *DispatchTrainUseCase) Execute(ctx context.Context, trainID uuid.UUID, 
 	train.Status = entity.TrainInTransit // ensure it's set for progress update
 	if err := uc.trainRepo.UpdateProgress(ctx, train); err != nil {
 		return err
+	}
+
+	// Update locomotive
+	loco.Status = entity.LocomotiveInTransit
+	loco.TrainID = &train.ID
+	loco.AvailableAtHour = simHour + int64(math.Ceil(totalDuration))
+	loco.AvailableAt = uc.clock.ToDisplayTime(loco.AvailableAtHour)
+	loco.CurrentStationID = train.Route[len(train.Route)-1] // Destination station
+
+	if err := uc.locomotiveRepo.Update(ctx, loco); err != nil {
+		return fmt.Errorf("failed to update locomotive: %w", err)
 	}
 
 	uc.broadcaster.Publish(broadcaster.NewEvent(broadcaster.TrainDispatched, train))

@@ -8,11 +8,12 @@ import (
 )
 
 type FleetStatusUseCase struct {
-	repository WagonRepository
+	repository           WagonRepository
+	assignmentRepository AssignmentRepository
 }
 
-func NewFleetStatusUseCase(repository WagonRepository) *FleetStatusUseCase {
-	return &FleetStatusUseCase{repository: repository}
+func NewFleetStatusUseCase(repository WagonRepository, assignmentRepository AssignmentRepository) *FleetStatusUseCase {
+	return &FleetStatusUseCase{repository: repository, assignmentRepository: assignmentRepository}
 }
 
 type WagonTypeStatus struct {
@@ -58,6 +59,12 @@ func (u *FleetStatusUseCase) Execute(ctx context.Context) (*FleetStatus, error) 
 			ts.Maintenance = c.Count
 		}
 	}
+
+	stats, err := u.assignmentRepository.GetStats(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get assignment stats")
+	}
+	status.AvgEmptyRunKmToday = stats.AvgEmptyRunKM
 
 	return status, nil
 }

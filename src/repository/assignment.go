@@ -19,12 +19,33 @@ func NewAssignmentRepository(conn *sql.DB) *AssignmentRepository {
 
 func (r *AssignmentRepository) Create(ctx context.Context, assignment *entity.Assignment) error {
 	_, err := r.conn.ExecContext(ctx, `
-		INSERT INTO assignments (id, order_id, wagon_id, empty_run_km, cost_empty_run, estimated_arrival, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO assignments (id, order_id, wagon_id, empty_run_km, loaded_run_km, cost_empty_run, estimated_arrival, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, assignment.ID, assignment.OrderID, assignment.WagonID,
-		assignment.EmptyRunKM, assignment.CostEmptyRun,
+		assignment.EmptyRunKM, assignment.LoadedRunKM, assignment.CostEmptyRun,
 		assignment.EstimatedArrival, assignment.Status)
 	return err
+}
+
+func (r *AssignmentRepository) GetStats(ctx context.Context) (*entity.AssignmentStats, error) {
+	s := &entity.AssignmentStats{}
+	err := r.conn.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*),
+			COALESCE(SUM(empty_run_km), 0),
+			COALESCE(SUM(cost_empty_run), 0),
+			COALESCE(AVG(empty_run_km), 0),
+			COALESCE(SUM(loaded_run_km), 0)
+		FROM assignments
+		WHERE status = $1
+	`, entity.AssignmentDelivered).Scan(
+		&s.TotalDelivered,
+		&s.TotalEmptyRunKM,
+		&s.TotalCostEmptyRun,
+		&s.AvgEmptyRunKM,
+		&s.TotalLoadedRunKM,
+	)
+	return s, err
 }
 
 func (r *AssignmentRepository) FindOldestPlanned(ctx context.Context) (*entity.PlannedAssignment, error) {

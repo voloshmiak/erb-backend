@@ -23,6 +23,7 @@ type AssignmentRepository interface {
 	Create(ctx context.Context, assignment *entity.Assignment) error
 	FindOldestPlanned(ctx context.Context) (*entity.PlannedAssignment, error)
 	UpdateStatus(ctx context.Context, assignmentID uuid.UUID, status entity.AssignmentStatus) error
+	GetStats(ctx context.Context) (*entity.AssignmentStats, error)
 }
 
 type OrderRepository interface {
@@ -56,6 +57,15 @@ type TrainRepository interface {
 	UpdateProgress(ctx context.Context, train *entity.Train) error
 }
 
+type LocomotiveRepository interface {
+	List(ctx context.Context) ([]*entity.Locomotive, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*entity.Locomotive, error)
+	ListByStatus(ctx context.Context, status entity.LocomotiveStatus) ([]*entity.Locomotive, error)
+	GetAvailableAtStation(ctx context.Context, stationID uuid.UUID) (*entity.Locomotive, error)
+	Update(ctx context.Context, l *entity.Locomotive) error
+	MarkIdleIfAvailable(ctx context.Context, simHour int64) error
+}
+
 type StationRepository interface {
 	List(ctx context.Context) ([]*entity.Station, []*entity.Edge, error)
 	Exists(ctx context.Context, id uuid.UUID) (bool, error)
@@ -63,5 +73,12 @@ type StationRepository interface {
 
 type MatchingGateway interface {
 	Match(ctx context.Context, orders []*entity.Order, wagons []*entity.Wagon,
-		stations []*entity.Station, edges []*entity.Edge) ([]*entity.AssignmentResult, error)
+		stations []*entity.Station, edges []*entity.Edge,
+		locomotives []*entity.Locomotive,
+	) ([]*entity.AssignmentResult, []entity.TrainGroupResult, *entity.MatchingMetrics, error)
+}
+
+type MatchingRunRepository interface {
+	Save(ctx context.Context, m *entity.MatchingMetrics) error
+	LoadAggregated(ctx context.Context) (*entity.MatchingRunAggregate, error)
 }

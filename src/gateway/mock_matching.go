@@ -24,11 +24,12 @@ type idleWagon struct {
 }
 
 func (g *MockMatchingGateway) Match(_ context.Context, orders []*entity.Order,
-	_ []*entity.Wagon, _ []*entity.Station, _ []*entity.Edge) ([]*entity.AssignmentResult, error) {
+	_ []*entity.Wagon, _ []*entity.Station, _ []*entity.Edge,
+	_ []*entity.Locomotive) ([]*entity.AssignmentResult, []entity.TrainGroupResult, *entity.MatchingMetrics, error) {
 
 	idle, err := g.queryIdleWagons()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	// index idle wagons by type for fast lookup
@@ -57,7 +58,7 @@ func (g *MockMatchingGateway) Match(_ context.Context, orders []*entity.Order,
 		})
 	}
 
-	return results, nil
+	return results, nil, &entity.MatchingMetrics{}, nil
 }
 
 func (g *MockMatchingGateway) queryIdleWagons() ([]idleWagon, error) {
